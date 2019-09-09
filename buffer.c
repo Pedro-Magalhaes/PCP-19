@@ -44,9 +44,9 @@ int consome(long meuid) {
         int data;
         int offset = buff.buffer_R_offset[meuid];
         buff.buffer_R_offset[meuid] = (offset+1)%buff.size; // não precisa ser atomico pois cada thread tem 1 offset
-        <await buff.num_reads[offset] < total_consumidores;
+        <await ((buff.prod_reads[offset] % meuid) != 0)
         data = buff.data[offset];
-        buff.num_reads[offset]++; >
+        buff.num_reads[offset] = buff.num_reads[offset] * meuid; >
     */
 
 }
@@ -60,9 +60,9 @@ int consome(long meuid) {
 void deposita(int item) {
     /*
     <int offset = buffer_W_offset++;>
-    <await (buff.num_reads[offset] == total_consumidores)
+    <await (buff.num_reads[offset] == total_prod_consumidores)
     buff.data=item
-    buff.num_reads[offset] = 0>
+    buff.num_reads[offset] = 1>
     */
 }
 
