@@ -37,7 +37,6 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-
 	C = atoi(argv[1]);
 	P = atoi(argv[2]);
 	N = atoi(argv[3]);
@@ -53,16 +52,22 @@ int main(int argc, char *argv[])
 	consumer_id = malloc(sizeof(pthread_t) * C);
 	producer_id = malloc(sizeof(pthread_t) * P);
 	
+	/*
+	 Calcula o produto total dos IDs dos consumidores (representados por numeros primos),
+	 usado para saber se uma posição do buffer foi ou não lida por todos 
+	*/
+	for (i = 0; i < C; i++)	{
+		consumers_total_prod *= prime_numbers[i];
+	}
+	printf("  Produto Total dos Consumidores = %d\n", consumers_total_prod);
+	buffer_max_readers(consumers_total_prod);	
+
 	
 	// cria os consumidores
 	for (i = 0; i < C; i++)	{
 		pthread_create(&consumer_id[i], &attr, Consumidor, (void*) prime_numbers[i]);
-		consumers_total_prod *= prime_numbers[i];
 	}
 
-	// produto total dos IDs dos consumidores, usado para saber se uma posição do buffer foi ou não lida por todos 
-	printf("\tProduto Total dos Consumidores = %d\n", consumers_total_prod);
-	
 	// cria os produtores
 	for (i = 0; i < P; i++)	{
 		pthread_create(&producer_id[i], &attr, Produtor, (void*) i);
@@ -85,7 +90,7 @@ void *Produtor(void *arg) {
 	for (int i=0; i<nIters*N; i++)
 	{
 		int dado = i + id * P;
-		printf("<%d> produtor\n",id);
+		printf("<%d> Produtor - Escreveu: %d\n",id,dado);
 		//deposita(dado, id);
 	}
 }
@@ -94,7 +99,7 @@ void *Consumidor(void *arg) {
 	int id = (int)arg;
 	for (int i=0; i<nIters*N /* *P */; i++)
 	{
-		//int dado = consome(id);
-        	printf("<%d> consumidor\n",id);
+		int dado = consome(id);
+        	printf("<%d> Consumidor - Leu: %d\n",id,dado);
 	}
 }
