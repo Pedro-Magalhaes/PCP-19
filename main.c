@@ -17,21 +17,24 @@ int main(int argc, char *argv[])
 {	
 	long i;
 	pthread_t *producer_id, *consumer_id;
-	
+
 	pthread_attr_t attr;		/* descriptors */
 	pthread_attr_init(&attr);
 	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 	
-    
+    	int prime_numbers[46] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 
+				 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 
+				 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199};
 
-    if(argc < 4 + 1) {
-        printf("Erro, os parametros necessários não foram informados. \nO Programa recebe \
-         os parametros nesta ordem:\n<numero de consumidores>\n<numero de produtores\n<tamanho do buffer>\n\
-         <numero de iterações>\n");
-         printf(" Numero de parametros recebidos: %d\n", argc);
-        exit(-1);
-    }
-    
+	if(argc < 4 + 1) {
+		printf("Erro, os parametros necessários não foram informados.\
+		\nO Programa recebe os parametros nesta ordem:\
+		\n\t<numero de consumidores>\n\t<numero de produtores\
+		\n\t<tamanho do buffer>\n\t<numero de iterações>\n");
+		printf(" Numero de parametros recebidos: %d\n", argc);
+		exit(-1);
+	}
+
 
 	C = atoi(argv[1]);
 	P = atoi(argv[2]);
@@ -48,9 +51,11 @@ int main(int argc, char *argv[])
 	consumer_id = malloc(sizeof(pthread_t) * C);
 	producer_id = malloc(sizeof(pthread_t) * P);
 	
+	
+
 	// cria os consumidores
 	for (i = 0; i < C; i++)	{
-		pthread_create(&consumer_id[i], &attr, Consumidor, (void*) i);
+		pthread_create(&consumer_id[i], &attr, Consumidor, (void*) prime_numbers[i]);
 	}
 	
 	// cria os produtores
@@ -85,6 +90,6 @@ void *Consumidor(void *arg) {
 	for (int i=0; i<nIters*N /* *P */; i++)
 	{
 		//int dado = consome(id);
-        printf("<%d> consumidor\n",id);
+        	printf("<%d> consumidor\n",id);
 	}
 }
