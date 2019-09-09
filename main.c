@@ -26,6 +26,8 @@ int main(int argc, char *argv[])
 				 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 
 				 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199};
 
+	long int consumers_total_prod = 1;
+
 	if(argc < 4 + 1) {
 		printf("Erro, os parametros necessários não foram informados.\
 		\nO Programa recebe os parametros nesta ordem:\
@@ -52,11 +54,14 @@ int main(int argc, char *argv[])
 	producer_id = malloc(sizeof(pthread_t) * P);
 	
 	
-
 	// cria os consumidores
 	for (i = 0; i < C; i++)	{
 		pthread_create(&consumer_id[i], &attr, Consumidor, (void*) prime_numbers[i]);
+		consumers_total_prod *= prime_numbers[i];
 	}
+
+	// produto total dos IDs dos consumidores, usado para saber se uma posição do buffer foi ou não lida por todos 
+	printf("\tProduto Total dos Consumidores = %d\n", consumers_total_prod);
 	
 	// cria os produtores
 	for (i = 0; i < P; i++)	{
