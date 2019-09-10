@@ -122,3 +122,11 @@ void free_buffer() {
 	TODO: Verificar se os printfs deveriam ficar dentro das funções 'consome/deposita' para indicar precisamente o momento em que a thread realmente acessou a regiao critica
 */
 
+//FIXME solucionar problema da 1a iteração:  	  
+	// buff.num_reads[0 .. N] deve ser inicializado com 1
+
+//FIXME solucionar problema do ID dos consumers (na função 'consome'):
+	// buff.buffer_R_offset[meuid] 
+	// Consumer threads devem ter um ID (0 .. N) e um outro campo associado à um Número Primo
+	// Campo: ID - deve ser usado para acessar posição no buffer, como 'offsets' e etc
+	// Campo: Prime - deve ser usado para computar quem já leu quais posições do buffer
