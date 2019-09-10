@@ -61,7 +61,7 @@ int main(int argc, char * argv[]) {
     for (i = 0; i < C; i++) {
         consumers_total_prod *= prime_numbers[i];
     }
-    printf("  Produto Total dos Consumidores = %d\n", consumers_total_prod);
+    printf(" Produto Total dos Consumidores = %ld\n", consumers_total_prod);
     buffer_max_readers(consumers_total_prod);
 
     // cria os consumidores
@@ -90,8 +90,9 @@ void * Produtor(void * arg) {
     int id = (int) arg;
     for (int i = 0; i < nIters * N; i++) {
         int dado = i + id * P;
-        printf("<%d> Produtor - Escreveu: %d\n",id,dado);
-	//deposita(dado, id);
+        //printf("<%d> Produtor - Escreveu: %d\n",id,dado);
+		//deposita(dado, id);
+		deposita(dado);
     }
 }
 
@@ -99,6 +100,6 @@ void *Consumidor(void *arg) {
     int id = (int)arg;
     for (int i=0; i<nIters*N /* *P */; i++) {
         int dado = consome(id);
-        printf("<%d> Consumidor - Leu: %d\n",id,dado);
-    }
+        //printf("<%d> Consumidor - Leu: %d\n",id,dado);
+	}
 }
