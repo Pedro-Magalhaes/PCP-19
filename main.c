@@ -24,10 +24,6 @@ int main(int argc, char * argv[]) {
     pthread_attr_init( & attr);
     pthread_attr_setscope( & attr, PTHREAD_SCOPE_SYSTEM);
 
-    int prime_numbers[46] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 
-			     67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 
-		             139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199};
-
     long int consumers_total_prod = 1;
 
     if (argc < 4 + 1) {
@@ -54,19 +50,9 @@ int main(int argc, char * argv[]) {
     consumer_id = malloc(sizeof(pthread_t) * C);
     producer_id = malloc(sizeof(pthread_t) * P);
 
-    /*
-     Calcula o produto total dos IDs dos consumidores (representados por numeros primos),
-     usado para saber se uma posição do buffer foi ou não lida por todos 
-    */
-    for (i = 0; i < C; i++) {
-        consumers_total_prod *= prime_numbers[i];
-    }
-    printf(" Produto Total dos Consumidores = %ld\n", consumers_total_prod);
-    buffer_max_readers(consumers_total_prod);
-
     // cria os consumidores
     for (i = 0; i < C; i++) {
-        pthread_create( & consumer_id[i], & attr, Consumidor, (void * ) prime_numbers[i]);
+        pthread_create( & consumer_id[i], & attr, Consumidor, (void * ) i);
     }
 
     // cria os produtores

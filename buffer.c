@@ -18,39 +18,44 @@ Buffer buff;
 
 int total_consumidores = 0;
 int total_produtores = 0;
-int total_prime_prod;
+long int total_prime_prod = 1;
 
 void buffer_init(int tamanho_buffer, int num_produtores, int num_consumidores) {
     sem_init(&empty, 1, 1);
     sem_init(&full, 1, 0);
     
-    //TODO
-    sem_init(&rw, 1, 0); 
-    buff.buffer_W_offset = 0;
-    //TODO
+    buff.buffer_W_offset = 0; //writers starts at first poisition
+    sem_init(&rw, 1, 1); //sem rw needs to be initialized with 1, so writers starts before readers 
     
     buff.size = tamanho_buffer;
     buff.data = (int*) malloc(sizeof(int) * buff.size);
     buff.buffer_R_offset = (int*) malloc(sizeof(int) * buff.size);
-    buff.num_reads = (int*) malloc(sizeof(int) * buff.size); //TODO: Garantir, na 1a iteracao, que nenhum reader vai tentar ler um posição que não tenha sido escrita por nenhum writer ainda 
+    buff.num_reads = (int*) malloc(sizeof(int) * buff.size);
     if(buff.data == NULL || buff.buffer_R_offset == NULL || buff.num_reads == NULL) {
         printf("Erro inicializando buffer, erro de malloc");
         exit(-1);
     }
     total_consumidores = num_consumidores;
     total_produtores = num_produtores;
+    
+    // Calcula o produto total dos números primos associados aos Consumidores
+    for(int i=0; i < num_consumidores; i++) {
+    	total_prime_prod *= prime_numbers[i];
+	}
+	
+	// Inicializa todas as posições do vetor 'num_reads' com o total do produto, para garantir que nenhum consumidor tentará ler algo que ainda não foi escrito na 1a iteração
+	for(int i=0; i< tamanho_buffer; i++) {
+		buff.num_reads[i] = total_prime_prod;
+	}
 }
 
-void buffer_max_readers(int consumers_total_prod) {
-    total_prime_prod = consumers_total_prod;
-}
 
 /* 
     Consumidores. 
     precisamos atomicamente incrementar o contador do buffer[i]
     quando buffer[i] == total_consumidores a memoria pode ser sobrescrita
 */
-int consome(long meuid) {
+int consome(int meuid) {
 	/*
     int data;
     int offset = buff.buffer_R_offset[meuid];
@@ -60,22 +65,27 @@ int consome(long meuid) {
     buff.num_reads[offset] = buff.num_reads[offset] * meuid; >
     */
     
-    int data;
-    
-    printf("Entered if Consome - Thread [%ld]\n", meuid);
-    
+    int data = 0;
+    int num_primo = prime_numbers[meuid];
     int offset = buff.buffer_R_offset[meuid];
     buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
-    if ((buff.num_reads[offset] % meuid) != 0) {
-    	printf("Entered if Consome\n");
     
+    
+    if ((buff.num_reads[offset] % num_primo) != 0) {
+    	num_primo = prime_numbers[meuid];	
+   		
    		sem_wait(&rw); //P(rw)
+   		printf(" Thread Cons[%d] - P(rw)\n",meuid); 
+   		
     	data = buff.data[offset];
-	    buff.num_reads[offset] = buff.num_reads[offset] * meuid;
+	    buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
+	    
 	    sem_post(&rw); //V(rw)
-	    printf("Consumidor - Leu: %d\n",data);
+   		printf(" Thread Cons[%d] - V(rw)\n",meuid); 
+
+	    //printf("Thread - C[%d] Num-Primo = %d, Consumiu: %d\n",meuid, num_primo, data);
     }
-    return total_prime_prod; //FIXME usar retorno real do que foi lido
+    return data; 
 }
 
 
@@ -92,19 +102,30 @@ void deposita(int item) {
     buff.num_reads[offset] = 1>
     */
     
-    // TODO como produtor sabe que deve ficar esperando offset resetar ou deve ir para prox espaço vazio
-    
+    // TODO como produtor sabe que deve ficar esperando offset resetar ou deve ir para prox espaço vazio? 
     int offset;
     offset = buff.buffer_W_offset;
+    
+    //printf("Entered Deposita - item = %d - offset = %d\n",item, offset);
+    
     if (buff.num_reads[offset] == total_prime_prod) {
-    	printf("Entered if Deposita\n");
     
 		buff.buffer_W_offset++;
-	    printf("Produtor - Escreveu: %d\n",item);
+		if (buff.buffer_W_offset >= buff.size) {
+			buff.buffer_W_offset = 0;
+		}
+		
+	    //printf("Thread - P[%d] escreveu: %d\n",item); //TODO Como pegar o ID da thread sem alterar a interface da função 'deposita'?
+		printf("Thread escreveu: %d\n",item);
+		
     	sem_wait(&rw); //P(rw)
+    	printf(" Thread Prod[n] - P(rw)\n"); 
+    	
     	buff.data[offset] = item;
     	buff.num_reads[offset] = 1;
+    	
     	sem_post(&rw); //V(rw)
+    	printf(" Thread Prod[n] - V(rw)\n");
     }
 }
 
@@ -118,15 +139,4 @@ void free_buffer() {
     sem_destroy(&full);
 }
 
-/*
-	TODO: Verificar se os printfs deveriam ficar dentro das funções 'consome/deposita' para indicar precisamente o momento em que a thread realmente acessou a regiao critica
-*/
-
-//FIXME solucionar problema da 1a iteração:  	  
-	// buff.num_reads[0 .. N] deve ser inicializado com 1
-
-//FIXME solucionar problema do ID dos consumers (na função 'consome'):
-	// buff.buffer_R_offset[meuid] 
-	// Consumer threads devem ter um ID (0 .. N) e um outro campo associado à um Número Primo
-	// Campo: ID - deve ser usado para acessar posição no buffer, como 'offsets' e etc
-	// Campo: Prime - deve ser usado para computar quem já leu quais posições do buffer
+//TODO Delete unused Prints! 
