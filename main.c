@@ -75,11 +75,13 @@ int main(int argc, char * argv[]) {
 void * Produtor(void * arg) {
     int id = (int) arg;
     for (int i = 0; i < nIters * N; i++) {
-        int dado = i + id * P;
-        
-		//deposita(dado, id);
+		/*        
+		int dado = i + id * P;
 		deposita(dado);
-        printf("<%d> Produtor - Escreveu: %d\n",id,dado);
+		printf("<%d> Produtor - Escreveu: %d\n",id,dado);
+		*/
+		deposita(id);
+        //printf("<%d> Produtor - Escreveu: %d\n",id,dado);
     }
 }
 
@@ -88,6 +90,6 @@ void *Consumidor(void *arg) {
     for (int i=0; i<nIters*N /* *P */; i++) {
         // printf("consume main\n");
         int dado = consome(id);
-        printf("<%d> Consumidor - Leu: %d\n",id,dado);
+        //printf("<%d> Consumidor - Leu: %d\n",id,dado);
 	}
 }

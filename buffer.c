@@ -51,7 +51,8 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
     for(int i=0; i < num_consumidores; i++) {
     	total_prime_prod *= prime_numbers[i];
 	}
-	printf("total prime prod: %d \n",total_prime_prod);
+
+	printf("total prime prod: %ld \n",total_prime_prod);
 	// Inicializa todas as posições do vetor 'num_reads' com o total do produto, para garantir que nenhum consumidor tentará ler algo que ainda não foi escrito na 1a iteração
 	for(int i=0; i< tamanho_buffer; i++) {
 		buff.num_reads[i] = total_prime_prod;
@@ -82,21 +83,24 @@ int consome(int meuid) {
     buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
     // printf("consumer pegando ew, off: %d\n",offset);
     
-    while(1) {
-        sem_wait(&ew); //P(ew)
-        // printf("consumer PEGOU ew, off: %d\n",offset);
-        if((buff.num_reads[offset] % num_primo) == 0) {
-            // printf("consumer id %d, no off %d, aguardando escrita. meu primo:%d\n",meuid,offset,num_primo);
-            sem_post(&ew); //V(ew)
 
-        // if(buff.num_reads[offset] == total_prime_prod) {
-        //     sem_post(&empty[offset]);
-        // }
-        // sem_wait(&full[offset]);
-        } else {
-            break;
-        }
-    }
+	//P(s)
+    //while(1) {
+    sem_wait(&ew); //P(ew)
+    // printf("consumer PEGOU ew, off: %d\n",offset);
+    if((buff.num_reads[offset] % num_primo) == 0) {
+        // printf("consumer id %d, no off %d, aguardando escrita. meu primo:%d\n",meuid,offset,num_primo);
+        sem_post(&ew); //V(ew)
+
+    // if(buff.num_reads[offset] == total_prime_prod) {
+    //     sem_post(&empty[offset]);
+    // }
+     sem_wait(&full[offset]);
+    } 
+	//else {
+      //  break;
+    //}
+    //}
     
     
     num_primo = prime_numbers[meuid];	
@@ -104,7 +108,10 @@ int consome(int meuid) {
     
     // printf(" Thread Cons[%d] - P(rw)\n",meuid); 
     
+	
     data = buff.data[offset];
+	printf("C<%d> Consumidor - Leu: %3d\n",meuid,data); //FIXME check where print should be placed
+
     //sem_wait(&ew);
     buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
     sem_post(&ew);
@@ -117,6 +124,8 @@ int consome(int meuid) {
 
     //printf("Thread - C[%d] Num-Primo = %d, Consumiu: %d\n",meuid, num_primo, data);
 
+	
+
     return data; 
 }
 
@@ -127,40 +136,45 @@ int consome(int meuid) {
 
 */
 void deposita(int item) {
-    /*
-    <int offset = buffer_W_offset++;>
-    <await (buff.num_reads[offset] == total_prod_consumidores)
-    buff.data[offset] = item
-    buff.num_reads[offset] = 1>
-    */
-    // printf(" deposita inicio - item: %d\n",item); 
-    
     // TODO como produtor sabe que deve ficar esperando offset resetar ou deve ir para prox espaço vazio? 
+
+	int id = item;
+
+	int dado;
+
     int offset;
-    sem_wait(&rw);
+    sem_wait(&rw); //P(rw)																//P(rw)
     offset = buff.buffer_W_offset;
     buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
-    sem_post(&rw);
-    //printf("Entered Deposita - item = %d - offset = %d\n",item, offset);
+    sem_post(&rw); //V(rw)																//V(rw)
     
-    sem_wait(&ew);
+    sem_wait(&ew); //P(ew)																//P(ew)
     if (buff.num_reads[offset] < total_prime_prod) {
-        // printf("deposita aguradando.\n");
-        sem_post(&ew);
-        sem_wait(&empty[offset]);
+        sem_post(&ew); //V(ew)															//V(ew)
+        sem_wait(&empty[offset]); //P(ew[offset])										//P(empty[offset])
     }
-    //printf("Thread - P[%d] escreveu: %d\n",item); //TODO Como pegar o ID da thread sem alterar a interface da função 'deposita'?
-    // printf("Thread escreveu: %d na pos %d\n",item, offset);
     
     //sem_wait(&ew); //P(rw)
     // printf(" Thread Prod[%d] - P(rw)\n",offset); 
-    
-    buff.data[offset] = item;
+
+	//TODO use iteration instead of offset
+	dado = (id * 10) + offset;
+
+    buff.data[offset] = dado;
+	printf("P<%d> Produtor - Write: %-3d - Pos: %-5d\n",id,dado,offset); //FIXME check where print should be placed
+
     buff.num_reads[offset] = 1;
-    sem_post(&ew); //V(rw)
+    sem_post(&ew); //V(ew)																//V(ew)
     
+
+	
+
     // printf("prendendo o empty[%d]\n",offset);
-    sem_trywait(&empty[offset]);
+
+	/*
+		The sem_trywait() function shall lock the semaphore referenced by sem only if the semaphore is currently not locked
+	*/
+    sem_trywait(&empty[offset]); //V(ew[offset]) - try										//V(empty[offset]) - try
     
     // printf(" Thread Prod[n] - V(rw)\n");
     
@@ -171,6 +185,7 @@ void free_buffer() {
     printf("liberando memória\n");
     free(buff.buffer_R_offset);
     free(buff.data);
+	free(buff.num_reads);
     sem_destroy(&rw);
     for(int i=0; i< buff.size; i++) {
         sem_destroy(&empty[i]);
