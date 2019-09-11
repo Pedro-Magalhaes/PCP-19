@@ -39,7 +39,7 @@ int main(int argc, char * argv[]) {
     P = atoi(argv[2]);
     N = atoi(argv[3]);
     nIters = atoi(argv[4]);
-
+    printf("c: %d, p: %d, N: %d\n",C,P,N);
     // inicializa o buffer
     buffer_init(C, P, N);
 
@@ -76,16 +76,18 @@ void * Produtor(void * arg) {
     int id = (int) arg;
     for (int i = 0; i < nIters * N; i++) {
         int dado = i + id * P;
-        //printf("<%d> Produtor - Escreveu: %d\n",id,dado);
+        
 		//deposita(dado, id);
 		deposita(dado);
+        printf("<%d> Produtor - Escreveu: %d\n",id,dado);
     }
 }
 
 void *Consumidor(void *arg) {
     int id = (int)arg;
     for (int i=0; i<nIters*N /* *P */; i++) {
+        // printf("consume main\n");
         int dado = consome(id);
-        //printf("<%d> Consumidor - Leu: %d\n",id,dado);
+        printf("<%d> Consumidor - Leu: %d\n",id,dado);
 	}
 }
