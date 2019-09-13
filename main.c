@@ -79,7 +79,7 @@ void * Produtor(void * arg) {
         
 		//deposita(dado, id);
 		deposita(dado);
-        printf("<%d> Produtor - Escreveu: %d\n",id,dado);
+        // printf("<%d> Produtor - Escreveu: %d na pos[%d]\n",id,dado);
     }
 }
 
@@ -88,6 +88,6 @@ void *Consumidor(void *arg) {
     for (int i=0; i<nIters*N /* *P */; i++) {
         // printf("consume main\n");
         int dado = consome(id);
-        printf("<%d> Consumidor - Leu: %d\n",id,dado);
+        // printf("<%d> Consumidor - Leu: %d\n",id,dado);
 	}
 }
