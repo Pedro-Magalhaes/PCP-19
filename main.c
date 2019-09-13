@@ -85,7 +85,7 @@ void * Produtor(void * arg) {
 
 void *Consumidor(void *arg) {
     int id = (int)arg;
-    for (int i=0; i<nIters*N /* *P */; i++) {
+    for (int i=0; i<nIters*N *P ; i++) {
         // printf("consume main\n");
         int dado = consome(id);
         // printf("<%d> Consumidor - Leu: %d\n",id,dado);
