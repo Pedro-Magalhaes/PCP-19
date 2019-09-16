@@ -93,9 +93,8 @@ int consome(int meuid) {
   sem_wait(&ge);  //TODO check e ge
   resto = (buff.num_reads[offset] % num_primo);
   // TODO check
-  // if (produced[next_data[id]] == FALSE || np > 0 || consumer_delay_size < (con_size - 1)) {
-  // if (resto == 0 || nw[offset] > 0 || dr[offset] < (total_consumidores - 1)) {
   if (resto == 0 || nw[offset] > 0) {
+    printf("Thread - C[%d], here: [line-99]\n",meuid); //todo delete it
     dr[offset] += 1;
     sem_post(&ge);  //TODO check e ge
     sem_wait(&r[offset]);
@@ -103,15 +102,18 @@ int consome(int meuid) {
   nr[offset] += 1;
 
   if(dr[offset] > 0) {
+    printf("Thread - C[%d], here: [line-107]\n",meuid); //todo delete it
     dr[offset] -= 1;
     sem_post(&ge);  //TODO check e ge
   }
   else {
+    printf("Thread - C[%d], here: [line-112]\n",meuid); //todo delete it
     sem_post(&ge);  //TODO check e ge
   }
 
+  // Read
   data = buff.data[offset];
-  printf("Thread - C[%d], leu: %d \t| NumPrimo = %d \t | TotalProd[%d] = %d\n",meuid, data, num_primo, offset, buff.num_reads[offset]);
+  printf("  Consumer<%d>, leu: %d \t| NumPrimo = %d \t | TotalProd[%d] = %d\n",meuid, data, num_primo, offset, buff.num_reads[offset]);
   // printf("Consumer<%d>, leu: %d, posicao: [%d]\n",meuid, data, offset);
 
   sem_wait(&ge);  //TODO check e ge
@@ -120,10 +122,12 @@ int consome(int meuid) {
   buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
   nr[offset] -= 1;
   if (nr[offset] == 0 && dw[offset] > 0 && buff.num_reads[offset] == total_prime_prod) {
+    printf("Thread - C[%d], here: [line-126]\n",meuid); //todo delete it
     dw[offset] -= 1;
     sem_post(&w[offset]);
   }
   else {
+    printf("Thread - C[%d], here: [line-131]\n",meuid); //todo delete it
     sem_post(&ge);  //TODO check e ge
   }
   return data;
@@ -138,7 +142,8 @@ void deposita(int id, int item) {
   sem_post(&ge);
 
   sem_wait(&ge); //TODO check e ge
-  if (buff.num_reads[offset] < total_prime_prod || nr[offset] > 0 || nw > 0) {
+  if (buff.num_reads[offset] != total_prime_prod || nr[offset] > 0 || nw[offset] > 0) {
+    printf("Thread - P[%d], here: [line-147]\n",id); //todo delete it
     dw[offset] += 1;
     sem_post(&ge); //TODO check e ge
     sem_wait(&w[offset]);
@@ -146,20 +151,24 @@ void deposita(int id, int item) {
   nw[offset] += 1;
   sem_post(&ge); //TODO check e ge
 
+  // Write
   buff.data[offset] = item;
 
   sem_wait(&ge); //TODO check e ge
-  printf("Producer<%d>, depositou: %d, na posicao: [%d]\n", id, item, offset);
+  printf("  Producer<%d>, depositou: %d, na posicao: [%d]\n", id, item, offset);
 
   if(dr[offset] == total_consumidores) {
+    printf("Thread - P[%d], here: [line-161]\n",id); //todo delete it
     dr[offset] -= 1;
     sem_post(&r[offset]);
   }
   else if (dw[offset] > 0 && buff.num_reads[offset] == total_prime_prod) {
+    printf("Thread - P[%d], here: [line-166]\n",id); //todo delete it
     dw[offset] -= 1;
     sem_post(&w[offset]);
   }
   else {
+    printf("Thread - P[%d], here: [line-171]\n",id); //todo delete it
     sem_post(&ge);  //TODO check e ge
   }
 
