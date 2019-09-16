@@ -54,9 +54,9 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
     }
 
     sem_init(&ge, 1, 1);
-   
-    buff.buffer_W_offset = 0; //writers starts at first poisition    
-    
+
+    buff.buffer_W_offset = 0; //writers starts at first poisition
+
     buff.data = (int*) malloc(sizeof(int) * buff.size);
     buff.buffer_R_offset = (int*) malloc(sizeof(int) * num_consumidores);
     buff.num_reads = (int*) malloc(sizeof(int) * buff.size);
@@ -65,7 +65,7 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
         printf("Erro inicializando buffer, erro de malloc");
         exit(-1);
     }
-    
+
     // Calcula o produto total dos números primos associados aos Consumidores
     for(int i=0; i < num_consumidores; i++) {
     	total_prime_prod *= prime_numbers[i];
@@ -84,157 +84,85 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
 }
 
 
-/* 
-    Consumidores. 
-    precisamos atomicamente incrementar o contador do buffer[i]
-    quando buffer[i] == total_consumidores a memoria pode ser sobrescrita
-*/
 int consome(int meuid) {
-	/*
-    int data;
-    int offset = buff.buffer_R_offset[meuid];
-    buff.buffer_R_offset[meuid] = (offset+1)%buff.size; // não precisa ser atomico pois cada thread tem 1 offset
-    
-    <await ((buff.prod_reads[offset] % meuid) != 0)>
-    <await (nr == 0 && nw == 0)>
-    data = buff.data[offset];
-    buff.num_reads[offset] = buff.num_reads[offset] * meuid; >
-    
-    SIGNAL
-    */
-    
-    
-    
-    int data = 0;
-    int num_primo = prime_numbers[meuid];
-    int offset = buff.buffer_R_offset[meuid];
-    int resto;
-    
-    buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
+  int data = 0;
+  int num_primo = prime_numbers[meuid];
+  int offset = buff.buffer_R_offset[meuid];
+  int resto;
 
-    //<await ((buff.prod_reads[offset] % meuid) != 0)>
-    sem_wait(&e[offset]); 
-    resto = buff.num_reads[offset] % num_primo;
-    if(resto == 0) {
-        // printf("consumer id %d, no off %d, aguardando escrita. meu primo:%d\n",meuid,offset,num_primo);
-        bloked_readers[offset]++;
-        sem_post(&e[offset]); //V(e)
-        sem_wait(&wait_write[offset]);
-    } else {
-        sem_post(&e[offset]); //V(e)
-    }
+  sem_wait(&ge);  //TODO check e ge
+  resto = (buff.num_reads[offset] % num_primo);
+  // TODO check
+  // if (produced[next_data[id]] == FALSE || np > 0 || consumer_delay_size < (con_size - 1)) {
+  // if (resto == 0 || nw[offset] > 0 || dr[offset] < (total_consumidores - 1)) {
+  if (resto == 0 || nw[offset] > 0) {
+    dr[offset] += 1;
+    sem_post(&ge);  //TODO check e ge
+    sem_wait(&r[offset]);
+  }
+  nr[offset] += 1;
 
-    //<await (nr == 0 && nw == 0)>
-    if(nw[offset] > 0 || nr[offset > 0]) {
-        dr[offset]++;
-        sem_post(&e[offset]); //V(e)
-        sem_wait(&r[offset]);
-    }
-    
-    nr[offset]++;
+  if(dr[offset] > 0) {
+    dr[offset] -= 1;
+    sem_post(&ge);  //TODO check e ge
+  }
+  else {
+    sem_post(&ge);  //TODO check e ge
+  }
 
-    if(dr[offset] > 0) {
-        dr[offset]--;
-        sem_post(&r[offset]);
-    } else {
-        sem_post(&e[offset]);
-    }
+  data = buff.data[offset];
+  printf("Thread - C[%d], leu: %d \t| NumPrimo = %d \t | TotalProd[%d] = %d\n",meuid, data, num_primo, offset, buff.num_reads[offset]);
+  // printf("Consumer<%d>, leu: %d, posicao: [%d]\n",meuid, data, offset);
 
-    data = buff.data[offset];
-    buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
+  sem_wait(&ge);  //TODO check e ge
+  buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
 
-    printf("CONSUMER<%d> leu %d da pos %d\n",meuid,data, offset);
-
-    sem_wait(&e[offset]);
-    nr[offset]--;
-    
-    //SIGNAL
-    if(nr[offset] == 0 && bloked_readers[offset] > 0) {
-            // printf("passando pro br\n");
-            bloked_readers[offset]--;
-            sem_post(&wait_write[offset]);
-    } else if (buff.num_reads[offset] >= total_prime_prod && bloked_writers[offset] > 0) {
-           bloked_writers--;
-           sem_post(&wait_read[offset]);
-    } else if(nr[offset] == 0 && dw[offset] > 0  ) {
-        // printf("passando pro w\n");
-        dw[offset]--;
-        sem_post(&w[offset]);
-    } else {
-        // printf("liberando exclusao\n");
-        sem_post(&e[offset]);
-    }
-
-    return data; 
+  buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
+  nr[offset] -= 1;
+  if (nr[offset] == 0 && dw[offset] > 0 && buff.num_reads[offset] == total_prime_prod) {
+    dw[offset] -= 1;
+    sem_post(&w[offset]);
+  }
+  else {
+    sem_post(&ge);  //TODO check e ge
+  }
+  return data;
 }
 
 
-/*
-    Escritores.
-    Só podem escrever quando buffer[i]==total_consumidores, setando buffer[i]==0
+void deposita(int id, int item) {
+  int offset;
+  sem_wait(&ge);
+  offset = buff.buffer_W_offset;
+  buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
+  sem_post(&ge);
 
-*/
-void deposita(int item) {
-    /*
-    <int offset = buffer_W_offset++;>
-    <await (buff.num_reads[offset] == total_prod_consumidores)>
-    <await (nr == 0 && nw == 0)
-    buff.data[offset] = item
-    buff.num_reads[offset] = 1>
+  sem_wait(&ge); //TODO check e ge
+  if (buff.num_reads[offset] < total_prime_prod || nr[offset] > 0 || nw > 0) {
+    dw[offset] += 1;
+    sem_post(&ge); //TODO check e ge
+    sem_wait(&w[offset]);
+  }
+  nw[offset] += 1;
+  sem_post(&ge); //TODO check e ge
 
-    SIGNAL
-    */
-    // printf(" deposita inicio - item: %d\n",item); 
-    
-    
-    // <int offset = buffer_W_offset++;>
-    int offset;
-    sem_wait(&ge);
-    offset = buff.buffer_W_offset;
-    buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
-    sem_post(&ge);
-    // printf("Entered Deposita - item = %d - offset = %d\n",item, offset);
-    
+  buff.data[offset] = item;
 
-    // <await (buff.num_reads[offset] == total_prod_consumidores)>
-    sem_wait(&e[offset]); //P(ew)
-    if(buff.num_reads[offset] < total_prime_prod ) {
-        bloked_writers[offset]++;
-        sem_post(&e[offset]); //V(e)
-        sem_wait(&wait_read[offset]);
-    } else {
-        sem_post(&e[offset]); //V(e)
-    }
+  sem_wait(&ge); //TODO check e ge
+  printf("Producer<%d>, depositou: %d, na posicao: [%d]\n", id, item, offset);
 
-    // <await (nr == 0 && nw == 0)
-    if ( nw[offset] > 0 || nr[offset] > 0) {
-        dw[offset]++;
-        sem_post(&e[offset]);
-        sem_wait(&w[offset]);
-    }
-    nw[offset]++;
-    sem_post(&e[offset]);
+  if(dr[offset] == total_consumidores) {
+    dr[offset] -= 1;
+    sem_post(&r[offset]);
+  }
+  else if (dw[offset] > 0 && buff.num_reads[offset] == total_prime_prod) {
+    dw[offset] -= 1;
+    sem_post(&w[offset]);
+  }
+  else {
+    sem_post(&ge);  //TODO check e ge
+  }
 
-    buff.data[offset] = item;
-    buff.num_reads[offset] = 1;
-    printf("dado <%d> inserido na pos %d do buff \n",item,offset);
-    
-    sem_wait(&e[offset]);
-    nw[offset]--;
-
-    // SIGNAL
-    if(bloked_readers[offset] > 0) {
-        bloked_readers[offset]--;
-        sem_post(&wait_write[offset]);
-    } else if(dr[offset] > 0) {
-        dr[offset]--;
-        sem_post(&r[offset]);
-    } else if(dw[offset] > 0) { // provavelmente nao precisa pela exclisão no offset de w
-        dw[offset]--;
-        sem_post(&w[offset]);
-    } else {
-        sem_post(&e[offset]);
-    }    
 }
 
 
@@ -262,4 +190,4 @@ void free_buffer() {
     free(wait_read);
 }
 
-//TODO Delete unused Prints! 
+//TODO Delete unused Prints!
