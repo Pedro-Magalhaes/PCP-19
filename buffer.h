@@ -4,6 +4,7 @@
 void buffer_init(int consumidores, int produtores, int tamanho_buffer);
 int consome(int meuid);
 void deposita(int id, int item); //Todo change to original signature
+// void deposita(int item); //Todo change to original signature
 void free_buffer();
 
 static int prime_numbers[46] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61,
