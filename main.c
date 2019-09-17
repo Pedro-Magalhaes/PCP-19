@@ -76,8 +76,7 @@ void * Produtor(void * arg) {
     int id = (int) arg;
     for (int i = 0; i < nIters * N; i++) {
         int dado = i + id * P;
-
-		    deposita(id, dado);
+		deposita(id, dado);
     }
 }
 
