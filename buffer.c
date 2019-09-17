@@ -13,10 +13,10 @@ typedef struct Buffers {
 
 sem_t *wait_write; // bloquear leitores apressados (quando tiverem dado a volta no buffer)
 sem_t *wait_read; // bloquear escritores apressados (quando tiverem dado a volta no buffer)
+sem_t e; // exclusão pra cada pos do buffer
 
 // Used semaphores
 sem_t ge; // exclusão global
-sem_t e; // exclusão pra cada pos do buffer
 sem_t r; // delay para  reader
 sem_t w; // delay para writer
 
@@ -88,10 +88,9 @@ Andrews Notation:
   data = buff.data[offset[id]];
   <  buff.num_reads[offset[id]] = buff.num_reads[offset[id]] * meuid;  >
   offset[id] = (offset[id] + 1) % buff.size;
-  <  nc--;  >
+  <  nr--;  >
   SIGNAL
 */
-
 int consome(int meuid) {
   int data = 0;
   int num_primo = prime_numbers[meuid];
@@ -137,7 +136,7 @@ int consome(int meuid) {
 
 /*
 Andrews Notation
-  < await (buff.num_reads[offset] == total_prod_consumidores && nc == 0 && nw == 0) nw++; >
+  < await (buff.num_reads[offset] == total_prod_consumidores && nr == 0 && nw == 0) nw++; >
   buff.data[offset] = item;
   < buff.num_reads[offset] = 1
   offset = (offset + 1) % buff.size;
@@ -147,7 +146,7 @@ Andrews Notation
 void deposita(int id, int item) {
   int offset;
 
-  // < await (buff.num_reads[offset] == total_prod_consumidores && nc == 0 && nw == 0) nw++; >
+  // < await (buff.num_reads[offset] == total_prod_consumidores && nr == 0 && nw == 0) nw++; >
   sem_wait(&ge);
   offset = buff.buffer_W_offset;
   if(buff.num_reads[offset] < total_prime_prod && nr > 0 && nw > 0) {
@@ -173,7 +172,7 @@ void deposita(int id, int item) {
   if (dr > 0 && dr == total_consumidores) {
     dr--;
     sem_post(&r);
-  } else if (dw > 0  && buff.num_reads[offset] < total_prime_prod) {
+  } else if (dw > 0  && buff.num_reads[offset] == total_prime_prod) {
     dw--;
     sem_post(&w);
   } else {
