@@ -55,19 +55,19 @@ int main(int argc, char * argv[]) {
         pthread_create( & consumer_id[i], & attr, Consumidor, (void * ) i);
     }
 
-    // // cria os produtores
-    // for (i = 0; i < P; i++) {
-    //     pthread_create( & producer_id[i], & attr, Produtor, (void * ) i);
-    // }
+    // cria os produtores
+    for (i = 0; i < P; i++) {
+        pthread_create( & producer_id[i], & attr, Produtor, (void * ) i);
+    }
 
     // espera até os processos terminarem
     for (i = 0; i < C; i++) {
         pthread_join(consumer_id[i], NULL);
     }
 
-    // for (i = 0; i < P; i++) {
-    //     pthread_join(producer_id[i], NULL);
-    // }
+    for (i = 0; i < P; i++) {
+        pthread_join(producer_id[i], NULL);
+    }
     free_buffer();
     return 0;
 }
@@ -76,8 +76,7 @@ void * Produtor(void * arg) {
     int id = (int) arg;
     for (int i = 0; i < nIters * N; i++) {
         int dado = i + id * P;
-
-		    deposita(id, dado);
+		deposita(id, dado);
     }
 }
 

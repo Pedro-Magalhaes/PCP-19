@@ -100,13 +100,19 @@ int consome(int meuid) {
   // < await ( (buff.num_reads[offset[id]] % prime_numbers[meuid]) != 0 && nw == 0 && dr == (total_consumidores - 1))  nr++; >
   sem_wait(&ge);
   resto = (buff.num_reads[offset] % num_primo);
-  if(resto == 0 && nw > 0 && dr < (total_consumidores - 1)) {
+  if(resto == 0 || nw > 0 || dr < (total_consumidores - 1)) {
     dr++;
     sem_post(&ge);
     sem_wait(&r);
   }
   nr++;
-  sem_post(&ge);
+  
+  if(dr > 0) {
+    dr--;
+    sem_post(&r);
+  } else {
+    sem_post(&ge);
+  }
 
   data = buff.data[offset]; // Read
   printf("Consumer<%d>, leu: %d\n",meuid, data);
@@ -114,12 +120,12 @@ int consome(int meuid) {
   // < buff.num_reads[offset[id]] = buff.num_reads[offset[id]] * meuid; >
   sem_wait(&ge);
   buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
-  sem_post(&ge);
+  // sem_post(&ge);
 
   buff.buffer_R_offset[meuid] = (offset+1) % buff.size; // não precisa ser atomico pois cada thread tem 1 offset
 
   // < nr--; >
-  sem_wait(&ge);
+  // sem_wait(&ge);
   nr--;
 
   //  SIGNAL
@@ -140,16 +146,15 @@ Andrews Notation
   buff.data[offset] = item;
   < buff.num_reads[offset] = 1
   offset = (offset + 1) % buff.size;
-  --nw; >
+  nw--; >
   SIGNAL
 */
 void deposita(int id, int item) {
-  int offset;
-
+  
   // < await (buff.num_reads[offset] == total_prod_consumidores && nr == 0 && nw == 0) nw++; >
   sem_wait(&ge);
-  offset = buff.buffer_W_offset;
-  if(buff.num_reads[offset] < total_prime_prod && nr > 0 && nw > 0) {
+  
+  if(buff.num_reads[buff.buffer_W_offset] < total_prime_prod || nr > 0 || nw > 0) {
     dw++;
     sem_post(&ge);
     sem_wait(&w);
@@ -157,14 +162,14 @@ void deposita(int id, int item) {
   nw++;
   sem_post(&ge);
 
-  buff.data[offset] = item; // Write
+  buff.data[buff.buffer_W_offset] = item; // Write
 
   // < buff.num_reads[offset] = 1
   // offset = (offset + 1) % buff.size;
-  // --nw; >
+  // nw--; >
   sem_wait(&ge);
-  printf("Producer<%d>, depositou: %d, na posicao: [%d] +\n", id, item, offset);
-  buff.num_reads[offset] = 1;
+  printf("Producer<%d>, depositou: %d, na posicao: [%d] +\n", id, item, buff.buffer_W_offset);
+  buff.num_reads[buff.buffer_W_offset] = 1;
   buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
   nw--;
 
@@ -172,7 +177,7 @@ void deposita(int id, int item) {
   if (dr > 0 && dr == total_consumidores) {
     dr--;
     sem_post(&r);
-  } else if (dw > 0  && buff.num_reads[offset] == total_prime_prod) {
+  } else if (dw > 0  && buff.num_reads[buff.buffer_W_offset] == total_prime_prod) {
     dw--;
     sem_post(&w);
   } else {
