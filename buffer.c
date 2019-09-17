@@ -52,7 +52,7 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
 
   sem_init(&e, 0, 1);
   sem_init(&r, 0, 0);
-  sem_init(&w, 0, 0);
+  sem_init(&w, 0, 1);
   sem_init(&ge, 0, 1);
 
   buff.buffer_W_offset = 0; //writers starts at first poisition
@@ -115,10 +115,10 @@ int consome(int meuid) {
   }
 
   data = buff.data[offset]; // Read
-  printf("Consumer<%d>, leu: %d\n",meuid, data);
 
   // < buff.num_reads[offset[id]] = buff.num_reads[offset[id]] * meuid; >
   sem_wait(&ge);
+  printf("\t\tConsumer<%d>, leu: %d\n",meuid, data);
   buff.num_reads[offset] = buff.num_reads[offset] * num_primo;
   // sem_post(&ge);
 
@@ -168,7 +168,7 @@ void deposita(int id, int item) {
   // offset = (offset + 1) % buff.size;
   // nw--; >
   sem_wait(&ge);
-  printf("Producer<%d>, depositou: %d, na posicao: [%d] +\n", id, item, buff.buffer_W_offset);
+  printf("\t\tProducer<%d>, depositou: %d, na posicao: [%d] +\n", id, item, buff.buffer_W_offset);
   buff.num_reads[buff.buffer_W_offset] = 1;
   buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
   nw--;
@@ -190,10 +190,10 @@ void free_buffer() {
     printf("liberando memória\n");
     free(buff.buffer_R_offset);
     free(buff.data);
-    free(nr);
-    free(nw);
-    free(dr);
-    free(dw);
+    // free(&nr);
+    // free(&nw);
+    // free(&dr);
+    // free(&dw);
     free(bloked_readers);
     sem_destroy(&ge);
     sem_destroy(&e);
