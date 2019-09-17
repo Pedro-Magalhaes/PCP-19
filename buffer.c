@@ -7,7 +7,7 @@ typedef struct Buffers {
     int buffer_W_offset; //posição "corrente" de escrita
     int *buffer_R_offset; // array com a posição de leitura de cada consumidor
     int *data;
-    int *num_reads; // numero total de leituras da posição da memória (identificada pelo produto das IDs dos consumidores que a leram, até o momento)
+    long unsigned int *num_reads; // numero total de leituras da posição da memória (identificada pelo produto das IDs dos consumidores que a leram, até o momento)
     int size; // tamanho do buffer
 } Buffer;
 
@@ -24,7 +24,7 @@ Buffer buff;
 
 int total_consumidores = 0;
 int total_produtores = 0;
-long int total_prime_prod = 1;
+long unsigned int total_prime_prod = 1;
 
 void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
 
@@ -40,7 +40,7 @@ void buffer_init(int num_consumidores, int num_produtores, int tamanho_buffer) {
 
   buff.data = (int*) malloc(sizeof(int) * buff.size);
   buff.buffer_R_offset = (int*) malloc(sizeof(int) * num_consumidores);
-  buff.num_reads = (int*) malloc(sizeof(int) * buff.size);
+  buff.num_reads = (long unsigned int*) malloc(sizeof(long unsigned int) * buff.size);
 
   if(buff.data == NULL || buff.buffer_R_offset == NULL || buff.num_reads == NULL) {
     printf("Erro inicializando buffer, erro de malloc");
@@ -71,7 +71,7 @@ Andrews Notation:
 */
 int consome(int meuid) {
   int data = -1;
-  int num_primo = prime_numbers[meuid];
+  unsigned int num_primo = prime_numbers[meuid];
   int offset = buff.buffer_R_offset[meuid];
   int resto;
 
@@ -126,7 +126,7 @@ Andrews Notation
   nw--; >
   SIGNAL
 */
-void deposita(int id, int item) {
+void deposita(int item) {
 
   // < await (buff.num_reads[offset] == total_prod_consumidores && nr == 0 && nw == 0) nw++; >
   sem_wait(&ge);
@@ -145,7 +145,7 @@ void deposita(int id, int item) {
   // offset = (offset + 1) % buff.size;
   // nw--; >
   sem_wait(&ge);
-  printf("\t\tProducer<%d>, depositou: %d, na posicao: [%d] +\n", id, item, buff.buffer_W_offset);
+  printf("\t\tProducer, depositou: %d, na posicao: [%d] +\n", item, buff.buffer_W_offset);
   buff.num_reads[buff.buffer_W_offset] = 1;
   buff.buffer_W_offset = (buff.buffer_W_offset + 1) % buff.size;
   nw--;
