@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include "LISTA.h"
 
-#define TOL 0.00000001
-#define NUM_THREADS 4
+#define TOL 0.0001
+#define NUM_THREADS 3
 
 
 typedef struct Tarefa{
