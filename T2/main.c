@@ -7,8 +7,6 @@
 typedef struct Tarefa{
     double a;
     double b;
-    double fa;
-    double fb;
     double area;
 } tarefa;
 
@@ -136,7 +134,9 @@ int main(int argc, char *argv[]) {
       }
       end = clock();
       time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-      printf("Implementacao 2: area somada = %lf | tempo = %f\n",area, time_spent);
+      if(fifo_data_isavailable()) {
+          printf("erro! ainda tinha tarefa****************\n");
+    }
     }
     return 0;
 }
@@ -146,8 +146,12 @@ double calculaArea1(double a, double b, double (*f)(double)) {
     double h = fabs(b-a);
     double meio = (a+b)/2;
     double hmeio = h/2;
-    double area_trapezio_maior =  ((f(a) + f(b)) * h) / 2;
-    double area_trapezios =  (((f(a) + f(meio)) * hmeio) / 2 )+ (((f(b) + f(meio)) * hmeio) / 2);
+    double fa,fb,fm;
+    fa = fabs(f(a));
+    fb = fabs(f(b));
+    fm = fabs(f(meio));
+    double area_trapezio_maior =  ((fa + fb) * h) / 2;
+    double area_trapezios =  (((fa + fm) * hmeio) / 2 )+ (((fb + fm) * hmeio) / 2);
     // printf("area+t_m = %lf , area_ts = %lf f(a) = %lf  f(b) = %lf h = %lf abs=%lf\n", area_trapezio_maior,area_trapezios, f(a),f(b), h, fabs(b-a));
     if(fabs(area_trapezio_maior - area_trapezios) > (double)TOL) {
         area_trapezios = calculaArea1(a,meio,f) + calculaArea1(meio,b,f);
@@ -162,8 +166,12 @@ double calculaArea2(double a, double b, double (*f)(double)) {
     double h = fabs(b-a);
     double meio = (a+b)/2;
     double hmeio = h/2;
-    double area_trapezio_maior =  ((f(a) + f(b)) * h) / 2;
-    double area_trapezios =  (((f(a) + f(meio)) * hmeio) / 2 )+ (((f(b) + f(meio)) * hmeio) / 2);
+    double fa,fb,fm;
+    fa = fabs(f(a));
+    fb = fabs(f(b));
+    fm = fabs(f(meio));
+    double area_trapezio_maior =  ((fa + fb) * h) / 2;
+    double area_trapezios =  (((fa + fm) * hmeio) / 2 )+ (((fb + fm) * hmeio) / 2);
     if(fabs(area_trapezio_maior - area_trapezios) > (double)TOL) {
 
         tarefa t1,t2;
