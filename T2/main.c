@@ -17,6 +17,7 @@ int fifo_head;
 int fifo_n_data;
 
 #define FIFO_MAX 256;
+#define INF 2147483647;
 
 int fifo_data_isavailable();
 int fifo_data_isfull();
@@ -28,78 +29,128 @@ double TOL;
 // TODO add funcoes complexas
 double fx3(double x);
 double fx2(double x);
+double fx7(double x);
+double fx13(double x);
+double fx14(double x);
 
-// double calculaArea( double a, double b, double TOL, double (*f)(double));
-double calculaArea( double a, double b, double (*f)(double));
+double calculaArea1( double a, double b, double (*f)(double));
+double calculaArea2( double a, double b, double (*f)(double));
 
 // TODO use argc and argv
 int main(int argc, char *argv[]) {
-    int NUM_THREADS = atoi(argv[1]);
-    int a = atoi(argv[2]);
-    int b = atoi(argv[3]);
+
+    int NUM_THREADS;
+    int a;
+    int b;
+    int version;
+
+    if (argc < 6) {
+        printf("Erro, os parametros necessários não foram informados.\
+                \nO Programa recebe os parametros nesta ordem:\
+                \n\t<numero de threads>\n\t<valor de 'a'>\n\t<valor de 'b'>\
+                \n\t<tolerancia>\n\t<versao da implementacao> (valor inteiro 1 ou 2)");
+        printf("\nNumero de parametros recebidos: %d\n", argc);
+        exit(-1);
+    }
+
+    NUM_THREADS = atoi(argv[1]);
+    a = atoi(argv[2]);
+    b = atoi(argv[3]);
     TOL = atof(argv[4]);
+    version = atof(argv[5]);
+    printf("Nthreads=%d, a=%d, b=%d, Tol=%lf, Implementacao=%d\n",NUM_THREADS,a,b,TOL, version);
 
-    printf("Nthreads=%d, a=%d, b=%d, Tol=%lf\n",NUM_THREADS,a,b,TOL);
-
-    int threads_finalizadas = 0;
     double incremento = fabs(b-a)/(double)NUM_THREADS;
     double area = 0;
     int i=0;
 
-    // INICIALIZA
-    // Adiciona todas as tarefas iniciais (num_threads tarefas)
-    // Lista vai conter tarefas
-    // threads_finalizadas = 0
+    if (version == 1) {
+      double vetor_area[NUM_THREADS];
 
-    for (i=0; i<NUM_THREADS; i++) {
-        tarefa t;
-        t.a = incremento*i + a;
-        t.b = t.a + incremento;
-        if(i == NUM_THREADS-1){
-            t.b = b;
-        }
-        printf("inserindo a=%lf b=%lf \n", t.a,t.b);
-        InsereTarefa(t);
+      #pragma omp parallel for num_threads(NUM_THREADS) reduction(+:area)
+      for (i=0; i<NUM_THREADS; i++) {
+
+          double ini = a + (i*incremento);
+          double fim = a+((i+1)*incremento);
+          if(i == NUM_THREADS - 1) { // tratando erro numerico de divisão do intervalo
+              fim = b;
+          }
+          area += calculaArea1(ini,fim, fx14);
+      }
+      printf("area somada = %lf \n",area);
     }
 
-    omp_set_num_threads(NUM_THREADS);
+    else if (version == 2) {
+      int threads_finalizadas = 0;
 
-    #pragma omp parallel
-    printf("\tNumber of Threads: omp_get_num_threads() returned %d\n", omp_get_num_threads());
-    while (threads_finalizadas < NUM_THREADS) {
-        tarefa task;
-        #pragma omp critical
-        {
-            task = RetiraTarefa();
-        }
-        if(task.area > -1){
-            double areaCalc;
-            #pragma omp critical
-            {
-                areaCalc = calculaArea(task.a,task.b, fx2);
-            }
-            printf("tarefa t.a=%lf t.b=%lf  areaCalc=%lf\n",task.a,task.b, areaCalc);
+      // INICIALIZA
+      // Adiciona todas as tarefas iniciais (num_threads tarefas)
+      // Lista vai conter tarefas
+      // threads_finalizadas = 0
 
-            if(areaCalc >= 0) {
-                #pragma omp critical
-                {
-                    area += areaCalc;
-                }
-            }
-        } else {
-            #pragma omp critical
-            {
-                threads_finalizadas++;
-            }
-        }
+      for (i=0; i<NUM_THREADS; i++) {
+          tarefa t;
+          t.a = incremento*i + a;
+          t.b = t.a + incremento;
+          if(i == NUM_THREADS-1){
+              t.b = b;
+          }
+          printf("inserindo a=%lf b=%lf \n", t.a,t.b);
+          InsereTarefa(t);
+      }
+
+      omp_set_num_threads(NUM_THREADS);
+
+      #pragma omp parallel
+      printf("\tNumber of Threads: omp_get_num_threads() returned %d\n", omp_get_num_threads());
+      while (threads_finalizadas < NUM_THREADS) {
+          tarefa task;
+          #pragma omp critical
+          {
+              task = RetiraTarefa();
+          }
+          if(task.area > -1){
+              double areaCalc;
+              #pragma omp critical
+              {
+                  areaCalc = calculaArea2(task.a,task.b, fx14);
+              }
+              if(areaCalc >= 0) {
+                  #pragma omp critical
+                  {
+                      area += areaCalc;
+                  }
+              }
+          } else {
+              #pragma omp critical
+              {
+                  threads_finalizadas++;
+              }
+          }
+      }
+      printf("area somada = %lf \n",area);
     }
-    printf("area somada = %lf \n",area);
     return 0;
 }
 
 
-double calculaArea(double a, double b, double (*f)(double)) {
-// double calculaArea(double a, double b, double TOL, double (*f)(double)) {
+double calculaArea1(double a, double b, double (*f)(double)) {
+    double h = fabs(b-a);
+    double meio = (a+b)/2;
+    double hmeio = h/2;
+    double area_trapezio_maior =  ((f(a) + f(b)) * h) / 2;
+    double area_trapezios =  (((f(a) + f(meio)) * hmeio) / 2 )+ (((f(b) + f(meio)) * hmeio) / 2);
+    // printf("area+t_m = %lf , area_ts = %lf f(a) = %lf  f(b) = %lf h = %lf abs=%lf\n", area_trapezio_maior,area_trapezios, f(a),f(b), h, fabs(b-a));
+    if(fabs(area_trapezio_maior - area_trapezios) > (double)TOL) {
+        area_trapezios = calculaArea1(a,meio,f) + calculaArea1(meio,b,f);
+        // printf("area+t_m = %lf , area_ts = %lf \n", area_trapezio_maior,area_trapezios);
+    }
+
+    return area_trapezios;
+}
+
+
+double calculaArea2(double a, double b, double (*f)(double)) {
     double h = fabs(b-a);
     double meio = (a+b)/2;
     double hmeio = h/2;
@@ -119,6 +170,39 @@ double calculaArea(double a, double b, double (*f)(double)) {
     }
     return area_trapezios;
 }
+
+double fx7(double x) {
+    long double pt1 = sqrt(x);
+    long double pt2 = x*x;
+    long double pt3 = 1 - (x*x);
+    if (pt3 == 0.0) {
+      pt3 = 0.00001;
+    }
+    long double pt4 = sqrt(pt3);
+    if (x == 0.0) {
+      pt1 = pt4;
+    }
+    long double res = (pt1/pt4);
+    // printf(" x*x = %Lf\n", pt2);
+    // printf(" 1 - x*x = %Lf\n", pt3);
+    // printf(" %lf / %lf = %Lf\n\n",pt1, pt4, res);
+    return res;
+}
+
+double fx13(double x) {
+    double res = exp(-(x*x)/2);
+    // printf("result = %lf", res);
+    return res;
+}
+
+double fx14(double x) {
+    double res = exp(x);
+    // double pt2 = cos(x);
+    // double res = pt1 * pt2;
+    // printf("result = %lf\n", res);
+    return res;
+}
+
 
 double fx2(double x) {
     return x * x;
@@ -145,8 +229,7 @@ int fifo_data_isfull()
     return 1;
 }
 
-int InsereTarefa(tarefa data)
-{
+int InsereTarefa(tarefa data) {
   // printf("  INSERIU tarefa => t.a=%lf t.b=%lf\n",data.a,data.b);
   if (!fifo_data_isfull()) {
     fifo[fifo_head] = data;
