@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <omp.h>
+#include <time.h>
 
 typedef struct Tarefa{
     double a;
@@ -26,7 +27,7 @@ tarefa RetiraTarefa(void);
 
 double TOL;
 
-// TODO add funcoes complexas
+// TODO ajustar funcoes
 double fx3(double x);
 double fx2(double x);
 double fx7(double x);
@@ -36,7 +37,6 @@ double fx14(double x);
 double calculaArea1( double a, double b, double (*f)(double));
 double calculaArea2( double a, double b, double (*f)(double));
 
-// TODO use argc and argv
 int main(int argc, char *argv[]) {
 
     int NUM_THREADS;
@@ -63,13 +63,16 @@ int main(int argc, char *argv[]) {
     double incremento = fabs(b-a)/(double)NUM_THREADS;
     double area = 0;
     int i=0;
+    clock_t start;
+    clock_t end;
+    double time_spent;
 
     if (version == 1) {
       double vetor_area[NUM_THREADS];
+      start = clock();
 
       #pragma omp parallel for num_threads(NUM_THREADS) reduction(+:area)
       for (i=0; i<NUM_THREADS; i++) {
-
           double ini = a + (i*incremento);
           double fim = a+((i+1)*incremento);
           if(i == NUM_THREADS - 1) { // tratando erro numerico de divisão do intervalo
@@ -77,11 +80,14 @@ int main(int argc, char *argv[]) {
           }
           area += calculaArea1(ini,fim, fx14);
       }
-      printf("area somada = %lf \n",area);
+      end = clock();
+      time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+      printf("Implementacao 1: area somada = %lf | tempo = %f\n",area, time_spent);
     }
 
     else if (version == 2) {
       int threads_finalizadas = 0;
+      start = clock();
 
       // INICIALIZA
       // Adiciona todas as tarefas iniciais (num_threads tarefas)
@@ -95,14 +101,14 @@ int main(int argc, char *argv[]) {
           if(i == NUM_THREADS-1){
               t.b = b;
           }
-          printf("inserindo a=%lf b=%lf \n", t.a,t.b);
+          // printf("inserindo a=%lf b=%lf \n", t.a,t.b);
           InsereTarefa(t);
       }
 
       omp_set_num_threads(NUM_THREADS);
 
       #pragma omp parallel
-      printf("\tNumber of Threads: omp_get_num_threads() returned %d\n", omp_get_num_threads());
+      // printf("\tNumber of Threads: omp_get_num_threads() returned %d\n", omp_get_num_threads());
       while (threads_finalizadas < NUM_THREADS) {
           tarefa task;
           #pragma omp critical
@@ -128,7 +134,9 @@ int main(int argc, char *argv[]) {
               }
           }
       }
-      printf("area somada = %lf \n",area);
+      end = clock();
+      time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+      printf("Implementacao 2: area somada = %lf | tempo = %f\n",area, time_spent);
     }
     return 0;
 }
