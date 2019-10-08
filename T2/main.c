@@ -67,7 +67,9 @@ int main(int argc, char *argv[]) {
     if (version == 1) {
       start = clock();
 
-      #pragma omp parallel for num_threads(NUM_THREADS) reduction(+:area)
+      omp_set_num_threads(NUM_THREADS);
+      // #pragma omp parallel for num_threads(NUM_THREADS) reduction(+:area)
+      #pragma omp parallel for reduction(+:area)
       for (i=0; i<NUM_THREADS; i++) {
           double ini = a + (i*incremento);
           double fim = a+((i+1)*incremento);
@@ -77,8 +79,8 @@ int main(int argc, char *argv[]) {
           area += calculaArea1(ini,fim, fx14);
       }
       end = clock();
-      time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-      printf("Implementacao 1: area somada = %lf | tempo = %f\n",area, time_spent);
+      time_spent = (double)(end - start) / (CLOCKS_PER_SEC*NUM_THREADS);
+      printf("Implementacao 1: area somada = %lf | tempo = %lf\n",area, time_spent);
     }
 
     /*
@@ -132,11 +134,11 @@ int main(int argc, char *argv[]) {
           }
       }
       end = clock();
-      time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+      time_spent = (double)(end - start) / (CLOCKS_PER_SEC*NUM_THREADS);
       if(fifo_data_isavailable()) {
           printf("erro! ainda tinha tarefa****************\n");
       }
-      printf("Implementacao 2: area somada = %lf | tempo = %f\n",area, time_spent);
+      printf("Implementacao 2: area somada = %lf | tempo = %lf\n",area, time_spent);
     }
     return 0;
 }
