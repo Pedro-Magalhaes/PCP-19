@@ -16,7 +16,7 @@ typedef struct Tarefa{
 tarefa fifo[FIFO_MAX];
 int fifo_tail;
 int fifo_head;
-int fifo_n_data;
+int fifo_n_data = 0;
 
 int fifo_data_isavailable();
 int fifo_data_isfull();
@@ -25,25 +25,28 @@ tarefa RetiraTarefa(void);
 
 double TOL;
 
-double fx13(double x);
-double fx14(double x);
+double fx1(double x);
+double fx2(double x);
+double fx3(double x);
 
 double calculaArea1( double a, double b, double (*f)(double));
 double calculaArea2( double a, double b, double (*f)(double));
 
 int main(int argc, char *argv[]) {
-
     int NUM_THREADS;
     int a;
     int b;
     int version;
+    int function = 1;
+    double (*fx)(double);
 
     if (argc < 6) {
         printf("Erro, os parametros necessários não foram informados.\
                 \nO Programa recebe os parametros nesta ordem:\
                 \n\t<numero de threads>\n\t<valor de 'a'>\n\t<valor de 'b'>\
-                \n\t<tolerancia>\n\t<versao da implementacao> (valor inteiro 1 ou 2)");
-        printf("\nNumero de parametros recebidos: %d\n", argc);
+                \n\t<tolerancia>\n\t<versao da implementacao> (valor inteiro 1 ou 2)\
+                \n\t[Opcional] <funcao de teste> (valor inteiro 1,2 ou 3)");
+        printf("\nNumero de parametros recebidos: %d\n\n", argc);
         exit(-1);
     }
 
@@ -51,8 +54,17 @@ int main(int argc, char *argv[]) {
     a = atoi(argv[2]);
     b = atoi(argv[3]);
     TOL = atof(argv[4]);
-    version = atof(argv[5]);
-    printf("Nthreads=%d, a=%d, b=%d, Tol=%lf, Implementacao=%d\n",NUM_THREADS,a,b,TOL, version);
+    version = atoi(argv[5]);
+
+    if (version != 1 && version != 2) {
+        printf("Erro, o parametro 5, <versao da implementacao>, deve ser um numero inteiro: 1 ou 2");
+        exit(-1);
+    }
+    if (argc == 7) {
+        function = atoi(argv[6]);
+    }
+    printf("Nthreads=%d, a=%d, b=%d, Tol=%lf, Implementacao=%d, Funcao=fx%d\n",\
+            NUM_THREADS,a,b,TOL, version, function);
 
     double incremento = fabs(b-a)/(double)NUM_THREADS;
     double area = 0;
@@ -60,6 +72,14 @@ int main(int argc, char *argv[]) {
     clock_t start;
     clock_t end;
     double time_spent;
+
+    if(function == 1) {
+        fx = fx1;
+    } else if(function == 2) {
+        fx = fx2;
+    }  else if(function == 3) {
+        fx = fx3;
+    }
 
     /*
     *       Implementacao 1
@@ -76,11 +96,11 @@ int main(int argc, char *argv[]) {
           if(i == NUM_THREADS - 1) { // tratando erro numerico de divisão do intervalo
               fim = b;
           }
-          area += calculaArea1(ini,fim, fx14);
+          area += calculaArea1(ini,fim, fx);
       }
       end = clock();
       time_spent = (double)(end - start) / (CLOCKS_PER_SEC*NUM_THREADS);
-      printf("Implementacao 1: area somada = %lf | tempo = %lf\n",area, time_spent);
+      printf("Implementacao 1: Area somada = %lf | tempo = %lf\n",area, time_spent);
     }
 
     /*
@@ -118,7 +138,7 @@ int main(int argc, char *argv[]) {
               double areaCalc;
               #pragma omp critical
               {
-                  areaCalc = calculaArea2(task.a,task.b, fx14);
+                  areaCalc = calculaArea2(task.a,task.b, fx);
               }
               if(areaCalc >= 0) {
                   #pragma omp critical
@@ -138,7 +158,7 @@ int main(int argc, char *argv[]) {
       if(fifo_data_isavailable()) {
           printf("erro! ainda tinha tarefa****************\n");
       }
-      printf("Implementacao 2: area somada = %lf | tempo = %lf\n",area, time_spent);
+      printf("Implementacao 2: Area somada = %lf | tempo = %lf\n",area, time_spent);
     }
     return 0;
 }
@@ -187,8 +207,8 @@ double calculaArea2(double a, double b, double (*f)(double)) {
     return area_trapezios;
 }
 
-// Funcoes com resultados para relatorio
-double fx13(double x) {
+// Funcoes com carga de processamento relevante
+double fx1(double x) {
     double res = 0;
     for (int i = 0; i < 10000; i++) {
         res += (exp(3*x)*sin(2*x));
@@ -196,7 +216,7 @@ double fx13(double x) {
     return res;
 }
 
-double fx14(double x) {
+double fx2(double x) {
     double res = 0;
     for (int i = 0; i < 100000; i++) {
         res += exp(x);
@@ -204,6 +224,12 @@ double fx14(double x) {
     // res = exp(x);
     return res;
 }
+
+// Funcao leve
+double fx3(double x) {
+    return x*x;
+}
+
 
 // Funcoes descartadas
 // double fx7(double x) {
@@ -228,8 +254,7 @@ double fx14(double x) {
 //     return x * x * x;
 // }
 
-int fifo_data_isavailable()
-{
+int fifo_data_isavailable() {
   if (fifo_n_data > 0) {
     return 1;
   }
@@ -238,8 +263,7 @@ int fifo_data_isavailable()
   }
 }
 
-int fifo_data_isfull()
-{
+int fifo_data_isfull() {
   if (fifo_n_data < FIFO_MAX)
     return 0;
   else
