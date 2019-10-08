@@ -4,19 +4,19 @@
 #include <omp.h>
 #include <time.h>
 
+#define FIFO_MAX 100000
+#define INF 2147483647
+
 typedef struct Tarefa{
     double a;
     double b;
     double area;
 } tarefa;
 
-tarefa fifo[256];
+tarefa fifo[FIFO_MAX];
 int fifo_tail;
 int fifo_head;
 int fifo_n_data;
-
-#define FIFO_MAX 256;
-#define INF 2147483647;
 
 int fifo_data_isavailable();
 int fifo_data_isfull();
@@ -25,10 +25,6 @@ tarefa RetiraTarefa(void);
 
 double TOL;
 
-// TODO ajustar funcoes
-double fx3(double x);
-double fx2(double x);
-double fx7(double x);
 double fx13(double x);
 double fx14(double x);
 
@@ -65,8 +61,10 @@ int main(int argc, char *argv[]) {
     clock_t end;
     double time_spent;
 
+    /*
+    *       Implementacao 1
+    */
     if (version == 1) {
-      double vetor_area[NUM_THREADS];
       start = clock();
 
       #pragma omp parallel for num_threads(NUM_THREADS) reduction(+:area)
@@ -83,9 +81,11 @@ int main(int argc, char *argv[]) {
       printf("Implementacao 1: area somada = %lf | tempo = %f\n",area, time_spent);
     }
 
+    /*
+    *       Implementacao 2
+    */
     else if (version == 2) {
       int threads_finalizadas = 0;
-      start = clock();
 
       // INICIALIZA
       // Adiciona todas as tarefas iniciais (num_threads tarefas)
@@ -99,14 +99,13 @@ int main(int argc, char *argv[]) {
           if(i == NUM_THREADS-1){
               t.b = b;
           }
-          // printf("inserindo a=%lf b=%lf \n", t.a,t.b);
           InsereTarefa(t);
       }
 
       omp_set_num_threads(NUM_THREADS);
+      start = clock();
 
       #pragma omp parallel
-      // printf("\tNumber of Threads: omp_get_num_threads() returned %d\n", omp_get_num_threads());
       while (threads_finalizadas < NUM_THREADS) {
           tarefa task;
           #pragma omp critical
@@ -136,7 +135,8 @@ int main(int argc, char *argv[]) {
       time_spent = (double)(end - start) / CLOCKS_PER_SEC;
       if(fifo_data_isavailable()) {
           printf("erro! ainda tinha tarefa****************\n");
-    }
+      }
+      printf("Implementacao 2: area somada = %lf | tempo = %f\n",area, time_spent);
     }
     return 0;
 }
@@ -157,7 +157,6 @@ double calculaArea1(double a, double b, double (*f)(double)) {
         area_trapezios = calculaArea1(a,meio,f) + calculaArea1(meio,b,f);
         // printf("area+t_m = %lf , area_ts = %lf \n", area_trapezio_maior,area_trapezios);
     }
-
     return area_trapezios;
 }
 
@@ -173,7 +172,6 @@ double calculaArea2(double a, double b, double (*f)(double)) {
     double area_trapezio_maior =  ((fa + fb) * h) / 2;
     double area_trapezios =  (((fa + fm) * hmeio) / 2 )+ (((fb + fm) * hmeio) / 2);
     if(fabs(area_trapezio_maior - area_trapezios) > (double)TOL) {
-
         tarefa t1,t2;
         t1.a = a;
         t1.b = meio;
@@ -187,45 +185,46 @@ double calculaArea2(double a, double b, double (*f)(double)) {
     return area_trapezios;
 }
 
-double fx7(double x) {
-    long double pt1 = sqrt(x);
-    long double pt2 = x*x;
-    long double pt3 = 1 - (x*x);
-    if (pt3 == 0.0) {
-      pt3 = 0.00001;
-    }
-    long double pt4 = sqrt(pt3);
-    if (x == 0.0) {
-      pt1 = pt4;
-    }
-    long double res = (pt1/pt4);
-    // printf(" x*x = %Lf\n", pt2);
-    // printf(" 1 - x*x = %Lf\n", pt3);
-    // printf(" %lf / %lf = %Lf\n\n",pt1, pt4, res);
-    return res;
-}
-
+// Funcoes com resultados para relatorio
 double fx13(double x) {
-    double res = exp(-(x*x)/2);
-    // printf("result = %lf", res);
+    double res = 0;
+    for (int i = 0; i < 10000; i++) {
+        res += (exp(3*x)*sin(2*x));
+    }
     return res;
 }
 
 double fx14(double x) {
-    double res = exp(x);
-    // double pt2 = cos(x);
-    // double res = pt1 * pt2;
-    // printf("result = %lf\n", res);
+    double res = 0;
+    for (int i = 0; i < 100000; i++) {
+        res += exp(x);
+    }
+    // res = exp(x);
     return res;
 }
 
-
-double fx2(double x) {
-    return x * x;
-}
-double fx3(double x) {
-    return x * x * x;
-}
+// Funcoes descartadas
+// double fx7(double x) {
+//     double pt1 = sqrt(x);
+//     double pt2 = x*x;
+//     double pt3 = 1 - (x*x);
+//     if (pt3 == 0.0) {
+//       pt3 = 0.00001;
+//     }
+//     double pt4 = sqrt(pt3);
+//     if (x == 0.0) {
+//       pt1 = pt4;
+//     }
+//     double res = (pt1/pt4);
+//     return res;
+// }
+//
+// double fx2(double x) {
+//     return x * x;
+// }
+// double fx3(double x) {
+//     return x * x * x;
+// }
 
 int fifo_data_isavailable()
 {
@@ -239,7 +238,7 @@ int fifo_data_isavailable()
 
 int fifo_data_isfull()
 {
-  if (fifo_n_data < 256)
+  if (fifo_n_data < FIFO_MAX)
     return 0;
   else
     return 1;
@@ -249,7 +248,7 @@ int InsereTarefa(tarefa data) {
   // printf("  INSERIU tarefa => t.a=%lf t.b=%lf\n",data.a,data.b);
   if (!fifo_data_isfull()) {
     fifo[fifo_head] = data;
-    if (fifo_head < 255)
+    if (fifo_head < FIFO_MAX-1)
     {
       fifo_head ++;
     }
@@ -268,7 +267,7 @@ tarefa RetiraTarefa(void) {
     if(fifo_data_isavailable()) {
         data = fifo[fifo_tail];
         // printf("  RETIROU - available!\tData => t.a=%lf t.b=%lf\n",data.a,data.b);
-        if (fifo_tail < 255)  {
+        if (fifo_tail < FIFO_MAX-1)  {
             fifo_tail ++;
         } else {
             fifo_tail = 0;
