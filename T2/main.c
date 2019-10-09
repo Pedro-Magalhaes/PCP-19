@@ -227,7 +227,11 @@ double fx2(double x) {
 
 // Funcao leve
 double fx3(double x) {
-    return x*x;
+    double res = 0;
+    for (int i = 0; i < 100; i++) {
+        res += x*x;
+    }
+    return res;
 }
 
 
