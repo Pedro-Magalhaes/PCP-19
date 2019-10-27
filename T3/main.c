@@ -54,8 +54,8 @@ int main(int argc, char * argv[]) {
     printf("n_cpu = %d\n",num_cpu);
     if (argc < 2 + 1) {
         printf("Erro, os parametros necessários não foram informados.\
-		\nO Programa recebe os parametros nesta ordem:\
-		\n\t<inicio do intervalo>\n\t<final do intervalo\n");
+								\nO Programa recebe os parametros nesta ordem:\
+								\n\t<inicio do intervalo>\n\t<final do intervalo\n");
         printf(" Numero de parametros recebidos: %d\n", argc);
         exit(-1);
     }
@@ -192,7 +192,7 @@ double calculaArea(double a, double b, double (*func)(double), fila f) {
         // printf("inserindo tarefas\n  t1.a=%lf t1.b=%lf\n  t2.a=%lf t2.b=%lf\n",t1.a,t1.b,t2.a,t2.b);
         pthread_mutex_lock(&f.mutex);
         InsereTarefa(t1,f);
-        InsereTarefa(t2,f); 
+        InsereTarefa(t2,f);
         pthread_mutex_unlock(&f.mutex);
         return -1;
     }
