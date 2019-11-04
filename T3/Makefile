@@ -1,19 +1,19 @@
-#### $@    Nome da regra. 
-#### $<    Nome da primeira dependência 
+#### $@    Nome da regra.
+#### $<    Nome da primeira dependência
 #### $^ 	Lista de dependências
 #### $? 	Lista de dependências mais recentes que a regra.
 #### $* 	Nome do arquivo sem sufixo
 
 CC=gcc
-CFLAGS=-W -Wall -std=c11 
+CFLAGS=-W -Wall -std=c11
 LIBS=-lm -lpthread
-EXEC=quadratura_mpi
+EXEC=tsp_mpi
 # todos os arquivos .c da pasta serao considerados src
 SRC= $(wildcard *.c)
 # todos os arquivos do SRC (.c) vao gerar um obj
 OBJ= $(SRC:.c=.o)
 all: $(EXEC)
-quadratura_mpi:$(OBJ)
+tsp_mpi:$(OBJ)
 	$(CC) -o $@ $^ $(LIBS)
 %.o: %.c
 	$(CC) -o $@ -c $^ $(CFLAGS) $(LIBS)
