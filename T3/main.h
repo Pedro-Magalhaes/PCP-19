@@ -1,3 +1,9 @@
+typedef struct Tour_Struct Tour;
+typedef Tour* tour_t;
+typedef struct DEQueue_Struct DEQueue;
+typedef struct Stack_Struct Stack;
+typedef Stack* my_stack_t;
+typedef int bool;
 
 // Funcoes ---------------------------------------------------------------------
 void read_matrix_file(char* file_path);
@@ -20,5 +26,6 @@ tour_t Alloc_tour();
 bool Empty_stack(my_stack_t stack);
 void Free_tour(tour_t tour);
 bool Best_tour(tour_t tour);
+void Copy_tour(tour_t tour1, tour_t tour2);
 
 // -----------------------------------------------------------------------------

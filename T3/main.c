@@ -4,13 +4,14 @@
 // #include <mpi.h>
 #include <string.h>
 #include <sys/sysinfo.h>
+#include "main.h"
 
 
 #define MAX_COST 999999
 #define NO_CITY -1
 #define true 1
 #define false 0
-typedef int bool;
+// typedef int bool;
 
 // Estruturas  -----------------------------------------------------------------
 typedef struct Tour_Struct {
@@ -18,7 +19,6 @@ typedef struct Tour_Struct {
     int* cities;
     int count;
 } Tour;
-typedef Tour* tour_t;
 
 typedef struct DEQueue_Struct {
     int head;
@@ -31,7 +31,6 @@ typedef struct Stack_Struct {
     int max_size;
 	tour_t* tours;
 } Stack;
-typedef Stack* my_stack_t
 // -----------------------------------------------------------------------------
 
 // Variaveis Globais -----------------------------------------------------------
@@ -76,20 +75,23 @@ int main(int argc, char* argv[]) {
 
 
 void TreeSearch(void* num) {
-
-	// [TODO] BFS non-rec
 	long threadID = (long)num;
-	int num_of_tasks = threads_tasks_numbers[threadID];
-	Push_copy(stack, tour); TODO
-	while (!Empty_stack(&stack)) {
-		tour_t curr_tour = Pop(stack);
+	int num_of_tasks = threads_tasks_numbers[threadID]; //[TODO]
+
+    my_stack_t stack; //[TODO] Get right stack
+    tour_t curr_tour; //[TODO] initialize curr_tour appropriately
+
+	Push_copy(stack, curr_tour); //[TODO] check Push_copy placement
+	while (!Empty_stack(stack)) {
+		curr_tour = Pop(stack);
 		int City_count = curr_tour->count;
 		if (City_count == n) {
 			if (Best_tour(curr_tour)) {
 				printf("[TODO] create update best tour"); //[TODO] delete line
 				// Update_best_tour(curr_tour);
 			}
-		} else {
+		}
+        else {
 			for (int nbr = n-1; nbr >= 1; nbr--) {
 				if (Feasible(curr_tour, nbr)) {
 					Add_city(curr_tour, nbr);
@@ -258,8 +260,14 @@ bool Best_tour(tour_t tour) {
 
     int last_city = get_last_city(tour);
 	int current_cost = tour->cost;
-    int new_cost = tour->cost + compute_cost(last_city, hometown);
-    return (newCost < best_tour->cost ? true : false);
+    int new_cost = current_cost + compute_cost(last_city, hometown);
+    return (new_cost < best_tour->cost ? true : false);
+}
+
+void Copy_tour(tour_t tour1, tour_t tour2) {
+  memcpy(tour2->cities, tour1->cities, (n+1)*sizeof(int));
+  tour2->count = tour1->count;
+  tour2->cost = tour1->cost;
 }
 
 // [TODO] MPI functions Receive/Send (pag 330)
