@@ -17,15 +17,21 @@ void Remove_last_city(tour_t tour);
 void Push_copy(); //TODO
 
 void set_tasks(my_stack_t stack);
-void TreeSearch(void* num);
+void Thread_tree_search(void* num);
 int Tour_city(tour_t tour, int i);
 tour_t Pop(my_stack_t stack);
 void Push(my_stack_t stack, int city);
 void Push_copy(my_stack_t stack, tour_t tour);
 tour_t Alloc_tour();
+
 bool Empty_stack(my_stack_t stack);
+my_stack_t Init_stack(void);
+void Free_stack(my_stack_t stack);
+
 void Free_tour(tour_t tour);
 bool Best_tour(tour_t tour);
 void Copy_tour(tour_t tour1, tour_t tour2);
+void Update_best_tour(tour_t tour);
+void Broeadcast_best_cost_to_all(int tour_cost);
 
 // -----------------------------------------------------------------------------

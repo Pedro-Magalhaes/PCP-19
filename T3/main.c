@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-// #include <mpi.h>
+#include <mpi.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include "main.h"
@@ -24,6 +24,7 @@ typedef struct DEQueue_Struct {
     int head;
     int tail;
     tour_t* tours;
+    int max_size;
 }  DEQueue;
 
 typedef struct Stack_Struct {
@@ -38,11 +39,24 @@ int n; // the total number of cities in the problem
 int* digraph; // data structure representing the input digraph
 const int hometown = 0; // data structure representing vertex or city 0, the salesperson’s hometown
 tour_t best_tour; // data structure representing the best tour so far
+int best_tour_cost;
 
 int* threads_tasks_numbers; // armazena o numero de tasks de cada thread
 int num_cpu;
+
+pthread_mutex_t best_tour_mutex;
+
+// [TODO] Initialize Variables appropriately
+MPI_Comm comm;
+int cluster_count;
+int cluster_rank;
+const int TOUR_TAG = 1;
+// const int TOUR_TAG = 3;
 // -----------------------------------------------------------------------------
 
+// Macros ----------------------------------------------------------------------
+#define Tour_cost(tour) (tour->cost)
+// -----------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
 
@@ -68,27 +82,31 @@ int main(int argc, char* argv[]) {
 	best_tour->cities = malloc(sizeof(int) * (n+1)); // n+1 beacuse last city must be hometown
 	best_tour->count = 0;
 	best_tour->cost = MAX_COST;
+    best_tour_cost = Tour_cost(best_tour);
 
     free(digraph);
     return 0;
 }
 
 
-void TreeSearch(void* num) {
+void Thread_tree_search(void* num) {
 	long threadID = (long)num;
 	int num_of_tasks = threads_tasks_numbers[threadID]; //[TODO]
+    tour_t curr_tour;
 
-    my_stack_t stack; //[TODO] Get right stack
-    tour_t curr_tour; //[TODO] initialize curr_tour appropriately
+    my_stack_t stack = Init_stack(); //[TODO] Get right stack
+    //  CALL Partition_tree(threadID, stack); [TODO] How to make Partition_tree
+    // ... so we can assign each thread its initial collection of subtrees
+    // OR my_stack_t my_stack_thread = pickElementsFromStack(my_stack, numThread, myCount); ??
 
-	Push_copy(stack, curr_tour); //[TODO] check Push_copy placement
-	while (!Empty_stack(stack)) {
+	// Push_copy(stack, curr_tour); //[TODO] check Push_copy placement
+    // DFS
+    while (!Empty_stack(stack)) {
 		curr_tour = Pop(stack);
 		int City_count = curr_tour->count;
 		if (City_count == n) {
 			if (Best_tour(curr_tour)) {
-				printf("[TODO] create update best tour"); //[TODO] delete line
-				// Update_best_tour(curr_tour);
+				Update_best_tour(curr_tour);
 			}
 		}
         else {
@@ -100,8 +118,9 @@ void TreeSearch(void* num) {
 				}
 			}
 		}
-		Free_tour(curr_tour);
+		Free_tour(curr_tour); // [TODO] Here ?
 	}
+    Free_stack(stack);
 }
 
 
@@ -244,9 +263,31 @@ tour_t Alloc_tour() {
 	return t;
 }
 
+// Stack -----------------------------------------------------------------------
 bool Empty_stack(my_stack_t stack) {
     return stack->size == 0 ? true : false;
 }
+
+my_stack_t Init_stack(void) {
+    my_stack_t stack = malloc(sizeof(Stack));
+    stack->tours = malloc(n*n*sizeof(tour_t));
+    for (int i=0; i<(n*n); i++) {
+        stack->tours[i] = NULL;
+    }
+    stack->size = 0;
+    stack->max_size = n*n;
+    return stack;
+}
+
+void Free_stack(my_stack_t stack) {
+    for (int i=0; i < stack->size; i++) {
+        free(stack->tours[i]->cities);
+        free(stack->tours[i]);
+    }
+    free(stack->tours);
+    free(stack);
+}
+// -----------------------------------------------------------------------------
 
 void Free_tour(tour_t tour) {
 	free(tour->cities);
@@ -268,6 +309,30 @@ void Copy_tour(tour_t tour1, tour_t tour2) {
   memcpy(tour2->cities, tour1->cities, (n+1)*sizeof(int));
   tour2->count = tour1->count;
   tour2->cost = tour1->cost;
+}
+
+void Update_best_tour(tour_t tour) {
+    // We have to use a mutex to avoid race Condition
+    pthread_mutex_lock(&best_tour_mutex);
+
+    Copy_tour(tour, best_tour);
+    Add_city(best_tour, hometown);
+    best_tour_cost = Tour_cost(best_tour);
+
+    // Boradcast asynchronously Best_cost to everyone
+    Broeadcast_best_cost_to_all(best_tour_cost);
+
+    pthread_mutex_unlock(&best_tour_mutex);
+}
+
+void Broeadcast_best_cost_to_all(int tour_cost) {
+    for (int dest = 0; dest < cluster_count; dest++) {
+        if (dest != cluster_rank) {
+            MPI_Bsend(&tour_cost, 1, MPI_INT, dest, TOUR_TAG, comm);
+            // MPI_Bsend(&tour_cost, 1, MPI_INT, dest, TOUR_TAG, MPI_COMM_WORLD);
+        }
+    }
+    // best_costs_bcast++; ??
 }
 
 // [TODO] MPI functions Receive/Send (pag 330)
