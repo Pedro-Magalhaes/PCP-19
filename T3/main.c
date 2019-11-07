@@ -315,15 +315,20 @@ void Update_best_tour(tour_t tour) {
     // We have to use a mutex to avoid race Condition
     pthread_mutex_lock(&best_tour_mutex);
 
-    Copy_tour(tour, best_tour);
-    Add_city(best_tour, hometown);
-    best_tour_cost = Tour_cost(best_tour);
+    /* We’ve already checked Besttour, but we need to check itagain */
+    if (Best_tour(curr_tour)) {
+        Copy_tour(tour, best_tour);
+        Add_city(best_tour, hometown);
+        best_tour_cost = Tour_cost(best_tour);
 
-    // Boradcast asynchronously Best_cost to everyone
-    Broeadcast_best_cost_to_all(best_tour_cost);
-
+        // Boradcast asynchronously Best_cost to everyone
+        Broeadcast_best_cost_to_all(best_tour_cost);
+    }
     pthread_mutex_unlock(&best_tour_mutex);
-}
+} /* [NOTE] Checking Best_tour() twice may seem wasteful, but if updates to the
+     best tour are infrequent, then most ofthe timeBesttourwill returnfalseand it
+     will only be rarely necessary to makethe “double” call */
+
 
 void Broeadcast_best_cost_to_all(int tour_cost) {
     for (int dest = 0; dest < cluster_count; dest++) {
