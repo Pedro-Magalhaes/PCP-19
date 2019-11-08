@@ -137,8 +137,8 @@ int main(int argc, char* argv[]) {
     }
     end = clock();
 
-   // time_spent = (double)(end - start) / (CLOCKS_PER_SEC*thread_count);
-   time_spent = (double)(end - start);
+   time_spent = (double)(end - start) / (CLOCKS_PER_SEC*thread_count);
+   // time_spent = (double)(end - start);
    Print_tour(best_tour);
    printf("Cost = %d\n", best_tour->cost);
    printf("Time = %e s\n", time_spent);
