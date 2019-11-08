@@ -50,13 +50,9 @@ void My_barrier_destroy(my_barrier_t bar);
 my_barrier_t My_barrier_init(int thr_count);
 void Build_initial_queue(void);
 int Get_upper_bd_queue_sz(void);
-tour_t Queue_elt(my_queue_t q, int i);
+tour_t getDEQsTour(my_queue_t q, int i);
 void Partition_tree(long my_rank, my_stack_t stack);
-    // Init_tour();
-    // Init_queue();
-    // Pop_Top_DEQ();
-    // Push_Bottom_DEQ();
-    // Print_queue();
+
 void Init_tour(tour_t tour, int cost);
 my_queue_t Init_queue(int size);
 void Push_Bottom_DEQ(my_queue_t queue, tour_t tour);

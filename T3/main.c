@@ -165,11 +165,6 @@ void* Thread_tree_search(void* rank) {
 
     Partition_tree(id, stack);
 
-    //  CALL Partition_tree(id, stack); [TODO] How to make Partition_tree
-    // ... so we can assign each thread its initial collection of subtrees
-    // OR my_stack_t my_stack_thread = pickElementsFromStack(my_stack, numThread, myCount); ??
-
-	// Push_copy(stack, curr_tour); //[TODO] check Push_copy placement
     // DFS
     while (!Empty_stack(stack)) {
 		curr_tour = Pop(stack);
@@ -451,39 +446,6 @@ void Receive tour(tour t tour, int src) {
 	MPI Unpack(contig buf, LARGE, &position, &tour->count, 1, MPI INT, comm);
 	MPI Unpack(contig buf, LARGE, &position, &tour->cost, 1, MPI INT, comm);
 }
-
-void multiThreadTreeSearch(void)  // [HERE]
-{
-    my_stack = Init_stack();
-    getMyStack(my_stack); // Aqui, a stack vai ter pelo menos nThreads tarefas ao invés de pelo menos 1
-
-	setNumberOfTasks(my_stack); // vai calcular o numero de tarefas que cada thread tem que pegar da stack
-
-	// Criacao das threads e inicializacao do semaforo para a my_stack (do rango)
-	sem_init(&sem_stack, 0, 1);     // sem_stack vai ter valor = 1
-	int i;
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
-
-	pthread_t* threads;
-	threads = malloc(sizeof(pthread_t) * nThreads);
-
-	// cria as threads executadoras
-	for (i = 0; i < thread_count; i++)
-	{
-		//pthread_create(&threads[i], &attr,TreeSearch, (void*)threadInfos[i]);
-		pthread_create(&threads[i], &attr, Thread_tree_search, (void*)i);
-	}
-
-	// espera até as threads terminarem
-	for (i = 0; i < thread_count; i++)
-	{
-		pthread_join(threads[i], NULL);
-	}
-
-    freeStack(my_stack);
-}
 */
 
 void Partition_tree(long my_rank, my_stack_t stack) {
@@ -491,28 +453,19 @@ void Partition_tree(long my_rank, my_stack_t stack) {
 
    if (my_rank == 0) queue_size = Get_upper_bd_queue_sz();
    // My_barrier(bar_str);
-// # ifdef DEBUG
    printf("Th %ld > queue_size = %d\n", my_rank, queue_size);
-// # endif
    if (queue_size == 0) pthread_exit(NULL);
 
    if (my_rank == 0) Build_initial_queue();
    // My_barrier(bar_str);
    Set_init_tours(my_rank, &my_first_tour, &my_last_tour);
-// # ifdef DEBUG
    printf("Th %ld > init_tour_count = %d, first = %d, last = %d\n",
          my_rank, init_tour_count, my_first_tour, my_last_tour);
-// # endif
    for (i = my_last_tour; i >= my_first_tour; i--) {
-// # ifdef DEBUG
-      Print_tour(Queue_elt(queue,i));
-// # endif
-      Push(stack, Queue_elt(queue,i));
+      Print_tour(getDEQsTour(queue,i));
+      Push(stack, getDEQsTour(queue,i));
    }
-// # ifdef PTSDEBUG
    Print_stack(stack, my_rank, "After set up");
-// # endif
-
 }
 
 int Get_upper_bd_queue_sz(void) {
@@ -524,7 +477,7 @@ int Get_upper_bd_queue_sz(void) {
       size *= fact;
    }
    return size;
-}  /* Get_upper_bd_queue_sz */
+}
 
 // void My_barrier(my_barrier_t bar) {
 //    pthread_mutex_lock(&bar->mutex);
@@ -583,35 +536,35 @@ my_barrier_t My_barrier_init(int thr_count) {
    bar->max_tc = thr_count;
    pthread_mutex_init(&bar->mutex, NULL);
    pthread_cond_init(&bar->ok_to_go, NULL);
-
    return bar;
-}  /* My_barrier_init */
+}
 
 void My_barrier_destroy(my_barrier_t bar) {
    pthread_mutex_destroy(&bar->mutex);
    pthread_cond_destroy(&bar->ok_to_go);
    free(bar);
-}  /* My_barrier_destroy */
-
+}
 
 void Set_init_tours(long my_rank, int* my_first_tour_p, int* my_last_tour_p) {
-   int quotient, remainder, my_count;
+    int quotient, remainder, my_count;
 
-   quotient = init_tour_count/thread_count;
-   remainder = init_tour_count % thread_count;
-   if (my_rank < remainder) {
-      my_count = quotient+1;
-      *my_first_tour_p = my_rank*my_count;
-   } else {
-      my_count = quotient;
-      *my_first_tour_p = my_rank*my_count + remainder;
-   }
-   *my_last_tour_p = *my_first_tour_p + my_count - 1;
-}   /* Set_init_tours */
+    quotient = init_tour_count/thread_count;
+    remainder = init_tour_count % thread_count;
+    if (my_rank < remainder) {
+        my_count = quotient+1;
+        *my_first_tour_p = my_rank*my_count;
+    }
+    else {
+        my_count = quotient;
+        *my_first_tour_p = my_rank*my_count + remainder;
+    }
+    *my_last_tour_p = *my_first_tour_p + my_count - 1;
+}
 
-
-tour_t Queue_elt(my_queue_t q, int i) {
-    return (q->tours[(q->head + (i)) % q->max_size]);
+tour_t getDEQsTour(my_queue_t queue, int i) {
+    int top = queue->head + i;
+    int offset = top % queue->max_size;
+    return (queue->tours[offset]);
 }
 
 // ----------------------------------------------------------------------------
