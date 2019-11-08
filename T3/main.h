@@ -15,14 +15,16 @@ bool Feasible(tour_t tour, int city);
 void Add_city(tour_t tour, int city);
 void Remove_last_city(tour_t tour);
 void Push_copy(); //TODO
+void Print_tour(tour_t tour);
 
 void set_tasks(my_stack_t stack);
-void Thread_tree_search(void* num);
+void* Thread_tree_search(void* num);
 int Tour_city(tour_t tour, int i);
 tour_t Pop(my_stack_t stack);
-void Push(my_stack_t stack, int city);
+void Push(my_stack_t stack, tour_t tour);
 void Push_copy(my_stack_t stack, tour_t tour);
 tour_t Alloc_tour();
+int Tour_cost(tour_t tour);
 
 bool Empty_stack(my_stack_t stack);
 my_stack_t Init_stack(void);

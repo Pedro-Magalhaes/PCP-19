@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <mpi.h>
+// #include <mpi.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include "main.h"
+#include <time.h>
 
 
 #define MAX_COST 999999
@@ -42,23 +43,37 @@ tour_t best_tour; // data structure representing the best tour so far
 int best_tour_cost;
 
 int* threads_tasks_numbers; // armazena o numero de tasks de cada thread
-int num_cpu;
+int thread_count;
 
 pthread_mutex_t best_tour_mutex;
 
 // [TODO] Initialize Variables appropriately
-MPI_Comm comm;
+// MPI_Comm comm;
 int cluster_count;
 int cluster_rank;
+// int my_rank;
+// int comm_sz;
+
 const int TOUR_TAG = 1;
 // const int TOUR_TAG = 3;
 // -----------------------------------------------------------------------------
 
 // Macros ----------------------------------------------------------------------
-#define Tour_cost(tour) (tour->cost)
+// #define Tour_cost(tour) (tour->cost)
 // -----------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+    char *file_path;
+    clock_t start, end;
+    double time_spent;
+    long thread;
+    pthread_t* thread_handles;
+
+    // Variaveis MPI
+    // MPI_Init(&argc, &argv);
+    // MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+    // MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
 
     if (argc < 2 + 1) {
         printf("Erro, os parametros necessários não foram informados.\
@@ -70,32 +85,59 @@ int main(int argc, char* argv[]) {
     }
 
     n = atoi(argv[1]);
-    char *file_path = argv[2];
+    file_path = argv[2];
 
 	read_matrix_file(file_path);
-    print_matrix(digraph); //[TODO] delete print
+    // print_matrix(digraph); //[TODO] delete print
 
-	num_cpu = get_nprocs(); // to get max number of threads in each process
+    // thread_count = get_nprocs(); // to get max number of threads in each process
+    thread_count = 4; // to get max number of threads in each process
+    printf("Number of threads: %d\n\n", thread_count);
 
 	// Init best tour
-	best_tour = malloc(sizeof(tour_t));
-	best_tour->cities = malloc(sizeof(int) * (n+1)); // n+1 beacuse last city must be hometown
+	best_tour = Alloc_tour();
 	best_tour->count = 0;
 	best_tour->cost = MAX_COST;
     best_tour_cost = Tour_cost(best_tour);
 
-    free(digraph);
-    return 0;
+    thread_handles = malloc(thread_count*sizeof(pthread_t));
+    // bar_str = My_barrier_init(thread_count);
+    // pthread_mutex_init(&best_tour_mutex, NULL);
+    // Init_term();
+    // bar_str = My_barrier_init(thread_count);
+
+    start = clock();
+    for (int id = 0; id < thread_count; id++) {
+        pthread_create(&thread_handles[id], NULL, Thread_tree_search, (void*) id);
+    }
+
+    for (int id = 0; id < thread_count; id++) {
+        pthread_join(thread_handles[id], NULL);
+    }
+    end = clock();
+
+   // time_spent = (double)(end - start) / (CLOCKS_PER_SEC*thread_count);
+   time_spent = (double)(end - start);
+   Print_tour(best_tour);
+   printf("Cost = %d\n", best_tour->cost);
+   printf("Time = %e s\n", time_spent);
+
+   free(best_tour->cities);
+   free(best_tour);
+   free(threads_tasks_numbers);
+   free(thread_handles);
+   free(digraph);
+   return 0;
 }
 
 
-void Thread_tree_search(void* num) {
-	long threadID = (long)num;
-	int num_of_tasks = threads_tasks_numbers[threadID]; //[TODO]
+void* Thread_tree_search(void* num) {
+	long id = (long)num;
+	// int num_of_tasks = threads_tasks_numbers[id]; //[TODO]
     tour_t curr_tour;
 
     my_stack_t stack = Init_stack(); //[TODO] Get right stack
-    //  CALL Partition_tree(threadID, stack); [TODO] How to make Partition_tree
+    //  CALL Partition_tree(id, stack); [TODO] How to make Partition_tree
     // ... so we can assign each thread its initial collection of subtrees
     // OR my_stack_t my_stack_thread = pickElementsFromStack(my_stack, numThread, myCount); ??
 
@@ -121,16 +163,17 @@ void Thread_tree_search(void* num) {
 		Free_tour(curr_tour); // [TODO] Here ?
 	}
     Free_stack(stack);
+    return NULL;
 }
 
 
 void set_tasks(my_stack_t stack) {
-	threads_tasks_numbers = malloc(num_cpu * sizeof(int));
-	int num_of_tasks = (stack->size)/num_cpu;
-	for(int i = 0; i < num_cpu; i++) {
+	threads_tasks_numbers = malloc(thread_count * sizeof(int));
+	int num_of_tasks = (stack->size)/thread_count;
+	for(int i = 0; i < thread_count; i++) {
 		threads_tasks_numbers[i] = num_of_tasks;
 	}
-	for(int i=0; i < ((stack->size)%num_cpu); i++) {
+	for(int i=0; i < ((stack->size)%thread_count); i++) {
 		threads_tasks_numbers[i]++;
 	}
 }
@@ -149,7 +192,7 @@ void read_matrix_file(char* file_path) {
             int offset = i*n+j;
             fscanf(matrix_file, "%d", &digraph[offset]);
             if (i == j && digraph[offset] != 0) {
-            	fprintf(stderr, "[Error] Index matrix[%d][%d] must be 0\n");
+            	fprintf(stderr, "[Error] Index matrix[%d][%d] must be 0\n",i,j);
               	exit(-1);
             }
         }
@@ -235,13 +278,13 @@ tour_t Pop(my_stack_t stack) {
     return tmp;
 }
 
-void Push(my_stack_t stack, int city) {
+void Push(my_stack_t stack, tour_t tour) {
 	int loc = stack->size;
     if (stack->max_size == stack->size) {
         printf("[Error - Push]: Stack is already full\n");
         exit(-1);
     }
-    stack->tours[loc] = city;
+    stack->tours[loc] = tour;
     (stack->size)++;
 }
 
@@ -320,7 +363,7 @@ void Update_best_tour(tour_t tour) {
     best_tour_cost = Tour_cost(best_tour);
 
     // Boradcast asynchronously Best_cost to everyone
-    Broeadcast_best_cost_to_all(best_tour_cost);
+    // Broeadcast_best_cost_to_all(best_tour_cost);  [TODO]
 
     pthread_mutex_unlock(&best_tour_mutex);
 }
@@ -328,11 +371,24 @@ void Update_best_tour(tour_t tour) {
 void Broeadcast_best_cost_to_all(int tour_cost) {
     for (int dest = 0; dest < cluster_count; dest++) {
         if (dest != cluster_rank) {
-            MPI_Bsend(&tour_cost, 1, MPI_INT, dest, TOUR_TAG, comm);
+            // MPI_Bsend(&tour_cost, 1, MPI_INT, dest, TOUR_TAG, comm);
             // MPI_Bsend(&tour_cost, 1, MPI_INT, dest, TOUR_TAG, MPI_COMM_WORLD);
         }
     }
     // best_costs_bcast++; ??
+}
+
+void Print_tour(tour_t tour) {
+    // printf("Process %d: ", my_rank); [TODO] add clusters rank
+    for (int i = 0; i < (tour->count)-1; i++) {
+        printf("%d -> ", Tour_city(tour, i));
+    }
+    printf("%d\n\n", Tour_city(tour, (tour->count)-1));
+}
+
+
+int Tour_cost(tour_t tour) {
+    return (tour->cost);
 }
 
 // [TODO] MPI functions Receive/Send (pag 330)
