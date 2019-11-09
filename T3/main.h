@@ -22,6 +22,11 @@ void Remove_last_city(tour_t tour);
 void Push_copy(); //TODO
 void Print_tour(tour_t tour);
 
+bool Terminated(my_stack_t stack, long my_rank);
+tour_t WorkSteal(my_stack_t stack, long my_rank);
+tour_t PopBottom(my_stack_t stack, long my_rank);
+
+
 void set_tasks(my_stack_t stack);
 void* Thread_tree_search(void* rank);
 int Tour_city(tour_t tour, int i);
@@ -43,6 +48,7 @@ void Update_best_tour(tour_t tour);
 void Broeadcast_best_cost_to_all(int tour_cost);
 
 void Print_stack(my_stack_t stack, long pthrdID, char* title);
+void Print_queue(my_queue_t queue, long id, char* title);
 // -----------------------------------------------------------------------------
 
 
@@ -60,3 +66,6 @@ void Push_Bottom_DEQ(my_queue_t queue, tour_t tour);
 tour_t Pop_Top_DEQ(my_queue_t queue);
 bool wasVisited(tour_t tour, int city);
 bool isQueueEmpty(my_queue_t queue);
+
+
+// void My_barrier(my_barrier_t bar); // My_barrier [HERE]
