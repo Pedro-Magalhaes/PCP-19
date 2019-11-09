@@ -14,6 +14,7 @@ void read_matrix_file(char* file_path);
 void print_matrix(int* digraph);
 int compute_cost(int c1, int c2);
 int get_last_city(tour_t t);
+void Print_winner(tour_t tour);
 
 bool Feasible(tour_t tour, int city);
 void Add_city(tour_t tour, int city);

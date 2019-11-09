@@ -139,6 +139,7 @@ int main(int argc, char* argv[]) {
 
    time_spent = (double)(end - start) / (CLOCKS_PER_SEC*thread_count);
    // time_spent = (double)(end - start);
+   Print_winner(best_tour);
    Print_tour(best_tour);
    printf("Cost = %d\n", best_tour->cost);
    printf("Time = %e s\n", time_spent);
@@ -413,6 +414,18 @@ void Print_tour(tour_t tour) {
     printf("%d\n\n", Tour_city(tour, (tour->count)-1));
 }
 
+void Print_winner(tour_t tour) {
+    printf("Best tour, fullpath:\n");
+    printf("city1 -> city2 : [cost] : [total] \n");
+    int total_cost=0;
+    for (int i = 0; i < (tour->count)-1; i++) {
+        int c1 = Tour_city(tour, i);
+        int c2 = Tour_city(tour, i+1);
+        int cost = compute_cost(c1,c2);
+        total_cost += cost;
+        printf("%2d -> %2d  : %3d : %3d\n", c1, c2, cost, total_cost);
+    }
+}
 
 void Print_stack(my_stack_t stack, long pthrdID, char* title) {
     // printf("(Rank %ld) - thread (%ld) - %s\n", cluster_rank, pthrdID, title);  //[later]
@@ -588,31 +601,32 @@ my_queue_t Init_queue(int size) {
 
 // Remove the tour at the head of the queue
 tour_t Pop_Top_DEQ(my_queue_t queue) {
-   tour_t tmp;
-   if (isQueueEmpty(queue)) {
-      fprintf(stderr, "Attempting to dequeue from empty queue\n");
-      exit(-1);
-   }
-   tmp = queue->tours[queue->head];
-   queue->head = (queue->head + 1) % queue->max_size;
-   return tmp;
+    tour_t tmp;
+    if (isQueueEmpty(queue)) {
+        exit(-1);
+        fprintf(stderr, "[Error]: Can't pop from a empty queue\n");
+    }
+    tmp = queue->tours[queue->head];
+    queue->head = (queue->head + 1) % queue->max_size;
+    return tmp;
 }
 
 // Add a new tour to the tail of the queue
 void Push_Bottom_DEQ(my_queue_t queue, tour_t tour) {
-  tour_t tmp;
-  if (queue->full == true) {
-     fprintf(stderr, "Attempting to enqueue a full queue\n");
-     fprintf(stderr, "Max_size = %d, head = %d, tail = %d\n", \
-             queue->max_size, queue->head, queue->tail);
-     exit(-1);
-  }
-  tmp = Alloc_tour(NULL);
-  Copy_tour(tour, tmp);
-  queue->tours[queue->tail] = tmp;
-  queue->tail = (queue->tail + 1) % queue->max_size;
-  if (queue->tail == queue->head)
-     queue->full = true;
+    tour_t tmp;
+    if (queue->full == true) {
+        printf(stderr, "[Error]: Can't push into a full queue\n");
+        printf(stderr, "Max_size = %d, head = %d, tail = %d\n", \
+               queue->max_size, queue->head, queue->tail);
+        exit(-1);
+    }
+    tmp = Alloc_tour(NULL);
+    Copy_tour(tour, tmp);
+    queue->tours[queue->tail] = tmp;
+    queue->tail = (queue->tail + 1) % queue->max_size;
+    if (queue->tail == queue->head) {
+        queue->full = true;
+    }
 }
 
 bool wasVisited(tour_t tour, int city) {
