@@ -66,6 +66,3 @@ void Push_Bottom_DEQ(my_queue_t queue, tour_t tour);
 tour_t Pop_Top_DEQ(my_queue_t queue);
 bool wasVisited(tour_t tour, int city);
 bool isQueueEmpty(my_queue_t queue);
-
-
-// void My_barrier(my_barrier_t bar); // My_barrier [HERE]
