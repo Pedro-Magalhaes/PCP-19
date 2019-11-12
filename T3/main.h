@@ -1,13 +1,24 @@
-typedef struct Tour_Struct Tour;
-typedef Tour* tour_t;
-typedef struct DEQueue_Struct DEQueue;
-typedef struct Stack_Struct Stack;
-typedef Stack* my_stack_t;
 typedef int bool;
 
-typedef struct barrier_struct Barrier;
-typedef Barrier* my_barrier_t;
+// Tour
+typedef struct Tour_Struct Tour;
+typedef Tour* tour_t;
+
+// DEQueue
+typedef struct DEQueue_Struct DEQueue;
 typedef DEQueue* my_queue_t;
+
+// Stack
+typedef struct Stack_Struct Stack;
+typedef Stack* my_stack_t;
+
+// Barrier
+typedef struct Barrier_Struct Barrier;
+typedef Barrier* my_barrier_t;
+
+// Term
+typedef struct Term_Struct Term;
+typedef Term* term_t;
 
 // Funcoes ---------------------------------------------------------------------
 void read_matrix_file(char* file_path);
@@ -19,10 +30,11 @@ void Print_winner(tour_t tour);
 bool Feasible(tour_t tour, int city);
 void Add_city(tour_t tour, int city);
 void Remove_last_city(tour_t tour);
-void Push_copy(); //TODO
+void Push_copy();
 void Print_tour(tour_t tour);
 
-bool Terminated(my_stack_t stack, long my_rank);
+// bool Terminated(my_stack_t stack, long my_rank);
+bool  Terminated(my_stack_t* stack_p, long my_rank);
 tour_t WorkSteal(my_stack_t stack, long my_rank);
 tour_t PopBottom(my_stack_t stack, long my_rank);
 
@@ -66,3 +78,6 @@ void Push_Bottom_DEQ(my_queue_t queue, tour_t tour);
 tour_t Pop_Top_DEQ(my_queue_t queue);
 bool wasVisited(tour_t tour, int city);
 bool isQueueEmpty(my_queue_t queue);
+
+void Init_term(void);
+void My_barrier(my_barrier_t bar);

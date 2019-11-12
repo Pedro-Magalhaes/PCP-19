@@ -4,8 +4,8 @@
 #### $? 	Lista de dependências mais recentes que a regra.
 #### $* 	Nome do arquivo sem sufixo
 
-CC=mpicc
-#CC=gcc
+#CC=mpicc
+CC=gcc
 CFLAGS=-W -Wall -std=c11
 LIBS=-lm -lpthread
 EXEC=tsp_mpi

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <mpi.h>
+// #include <mpi.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include "main.h"
@@ -35,6 +35,21 @@ typedef struct Stack_Struct {
     int head;  // ws [HERE]
 	tour_t* tours;
 } Stack;
+
+typedef struct Barrier_Struct {
+   int curr_tc;  // Number of threads that have entered the barrier
+   int max_tc;   // Number of threads that need to enter the barrier
+   pthread_mutex_t mutex;
+   pthread_cond_t ok_to_go;
+}  Barrier;
+
+typedef struct Term_Struct {
+   my_stack_t stack;
+   int count;  // Number of terminated threads
+   pthread_cond_t cond;
+   pthread_mutex_t mutex;
+} Term;
+
 // -----------------------------------------------------------------------------
 
 // Variaveis Globais -----------------------------------------------------------
@@ -60,13 +75,6 @@ const int TOUR_TAG = 1;
 // const int TOUR_TAG = 3;
 // -----------------------------------------------------------------------------
 
-typedef struct barrier_struct {
-   int curr_tc;  // Number of threads that have entered the barrier
-   int max_tc;   // Number of threads that need to enter the barrier
-   pthread_mutex_t mutex;
-   pthread_cond_t ok_to_go;
-}  Barrier;
-
 
 my_barrier_t bar_str;
 int init_tour_count;
@@ -74,6 +82,7 @@ int queue_size;
 
 my_queue_t queue;
 my_stack_t* bigStack;
+term_t term;
 
 
 // "Macros" --------------------------------------------------------------------
@@ -95,9 +104,9 @@ int main(int argc, char* argv[]) {
     pthread_t* thread_handles;
 
     // Variaveis MPI
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
+    // MPI_Init(&argc, &argv);
+    // MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+    // MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
 
 
     if (argc < 2 + 1) {
@@ -109,14 +118,16 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
 
-    n = atoi(argv[1]);
-    file_path = argv[2];
+    // n = atoi(argv[1]);
+    file_path = argv[1];
 
 	read_matrix_file(file_path);
     // print_matrix(digraph); //[TODO] delete print
 
+    printf("Number of cities = %d\n", n);
+
     // thread_count = get_nprocs(); [TODO] -use it // to get max number of threads in each process
-    thread_count = strtol(argv[3], NULL, 4);
+    thread_count = strtol(argv[2], NULL, 4);
     printf("Number of threads: %d\n\n", thread_count);
 
 	// Init best tour
@@ -132,6 +143,8 @@ int main(int argc, char* argv[]) {
 
     thread_handles = malloc(thread_count*sizeof(pthread_t));
     bar_str = My_barrier_init(thread_count);
+    pthread_mutex_init(&best_tour_mutex, NULL);
+    Init_term();
 
     start = clock();
     for (int id = 0; id < thread_count; id++) {
@@ -148,7 +161,9 @@ int main(int argc, char* argv[]) {
    Print_winner(best_tour);
    printf("\nBest tour: ");
    Print_tour(best_tour);
-   printf("Cost = %d\n", best_tour->cost);
+   // printf("Cost = %d\n", best_tour->cost); // TODO
+   printf("Cost = %d | best_tour_cost = %d\n", best_tour->cost, best_tour_cost);
+
    printf("Time = %e s\n", time_spent);
 
    free(best_tour->cities);
@@ -159,7 +174,11 @@ int main(int argc, char* argv[]) {
    My_barrier_destroy(bar_str);
    pthread_mutex_destroy(&best_tour_mutex);
 
-   MPI_Finalize();
+   pthread_cond_destroy(&term->cond);
+   pthread_mutex_destroy(&term->mutex);
+   free(term);
+
+   // MPI_Finalize();
 
    return 0;
 }
@@ -201,26 +220,69 @@ void* Thread_tree_search(void* rank) {
 }
 
 
-bool Terminated(my_stack_t stack, long my_rank) {
-    if (!Empty_stack(stack)) {
-        // not done yet
+
+bool Terminated(my_stack_t* stack_p, long my_rank) {
+    my_stack_t stack = *stack_p;
+    int got_lock;
+    printf("T[%ld] > Enter Terminated, stack size = %d\n", my_rank, stack->size);
+    if (!Empty_stack(stack)) {  /* At least one tour in stack */
         return false;
     }
+    else {  /* my stack is empty */
 
-    for(long id=0; id < thread_count; id++) {
-        if (id != my_rank) {
-            if(bigStack[id]->size > 1) {
-                // There's work to steal
-                printf("\n\t\tT[%ld] will try to steal work from T[%ld]\n\n",my_rank, id);
-                tour_t tStolen = WorkSteal(bigStack[id], id);
-                Push(stack, tStolen);
-                return false;
+        // printf("T[%ld] > Waiting on mutex\n", my_rank);
+        // pthread_mutex_lock(&term->mutex); //LOCK HERE
+        // printf("T[%ld] > Got mutex, term->count = %d\n", my_rank, term->count);
+
+        if (term->count == thread_count-1) { /* Last thread running */
+            term->count++;
+            pthread_cond_broadcast(&term->cond);
+            pthread_mutex_unlock(&term->mutex);
+            Free_stack(stack);
+            return true;
+        }
+        else { /* Threads still running, wait for work */
+            // Checks if there's work to steal
+            for(long id=0; id < thread_count; id++) {
+                if (id != my_rank && bigStack[id]->size > 1) {
+
+                    // There's work to steal
+                    Print_stack(bigStack[id], id, "Victim BEFORE work-steal");
+                    tour_t tStolen = Pop(bigStack[id]);
+                    Push(stack, tStolen);
+                    pthread_mutex_unlock(&term->mutex);  //UNLOCK HERE
+                    Print_stack(bigStack[my_rank], my_rank, "Stealer AFTER work-steal");
+                    Print_stack(bigStack[id], id, "Victim AFTER work-steal");
+
+                    return false;
+                }
             }
+            // If there wasnt work to steal... Terminate it
+            pthread_mutex_unlock(&term->mutex);  //UNLOCK HERE
+            return true;
         }
     }
-    printf("T[%ld] - Terminating, stack size = %d\n", my_rank, stack->size);
-    return true;
 }
+// bool Terminated(my_stack_t stack, long my_rank) {
+//     if (!Empty_stack(stack)) {
+//         // not done yet
+//         return false;
+//     }
+//
+//     for(long id=0; id < thread_count; id++) {
+//         if (id != my_rank) {
+//             if(bigStack[id]->size > 1) {
+//                 // There's work to steal
+//                 printf("\n\t\tT[%ld] will try to steal work from T[%ld]\n\n",my_rank, id);
+//                 tour_t tStolen = WorkSteal(bigStack[id], id);
+//                 Push(stack, tStolen);
+//                 return false;
+//             }
+//         }
+//     }
+//     printf("T[%ld] - Terminating, stack size = %d\n", my_rank, stack->size);
+//     return true;
+// }
 
 tour_t PopBottom(my_stack_t stack, long my_rank) {
     tour_t tmp;
@@ -249,10 +311,19 @@ void set_tasks(my_stack_t stack) {
 void read_matrix_file(char* file_path) {
     int i, j;
     FILE* matrix_file = fopen(file_path, "r");
+
+
 	if (matrix_file == NULL) {
 		fprintf(stderr, "[Error] Null file: %s\n", file_path);
         exit(-1);
 	}
+
+    fscanf(matrix_file, "%d", &n);
+    if (n <= 0) {
+        fprintf(stderr, "[Error] Number of cities must be greater than 0\n");
+        exit(-1);
+    }
+
     digraph = malloc(n*n*sizeof(int));
     for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) {
@@ -294,9 +365,8 @@ bool Feasible(tour_t tour, int city) {
     int tmp_cost = tour->cost + compute_cost(last_city, city);
     if (tmp_cost < best_tour->cost) {
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void Add_city(tour_t tour, int city) {
@@ -356,14 +426,14 @@ void Push(my_stack_t stack, tour_t tour) {
 }
 
 void Push_copy(my_stack_t stack, tour_t tour) {
-	int loc = stack->size;
+	int index = stack->size;
     if (stack->max_size == stack->size) {
 		printf("[Error - Push_copy]: Stack is already full\n");
         exit(-1);
     }
     tour_t tmp = Alloc_tour();
     Copy_tour(tour, tmp);
-    stack->tours[loc] = tmp;
+    stack->tours[index] = tmp;
     (stack->size)++;
 }
 
@@ -411,7 +481,7 @@ tour_t WorkSteal(my_stack_t stack, long my_rank) {
    stack->head = (stack->head + 1) % stack->max_size;
    (stack->size)--;
    return tmp;
-}  /* Pop */
+}
 // -----------------------------------------------------------------------------
 
 void Free_tour(tour_t tour) {
@@ -537,12 +607,12 @@ void Partition_tree(long my_rank, my_stack_t stack) {
    int my_first_tour, my_last_tour, i;
 
    if (my_rank == 0) queue_size = Get_upper_bd_queue_sz();
-   // My_barrier(bar_str); // My_barrier [HERE]
+   My_barrier(bar_str); // My_barrier [HERE]
    printf("T[%ld] > queue_size = %d\n", my_rank, queue_size);
    if (queue_size == 0) pthread_exit(NULL);
 
    if (my_rank == 0) Build_initial_queue();
-   // My_barrier(bar_str); // My_barrier [HERE]
+   My_barrier(bar_str); // My_barrier [HERE]
    Set_init_tours(my_rank, &my_first_tour, &my_last_tour);
    printf("T[%ld] > init_tour_count = %d, first = %d, last = %d\n",
          my_rank, init_tour_count, my_first_tour, my_last_tour);
@@ -565,22 +635,21 @@ int Get_upper_bd_queue_sz(void) {
 }
 
 // My_barrieir [HERE]
-// void My_barrier(my_barrier_t bar) {
-//     pthread_mutex_lock(&bar->mutex);
-//     bar->curr_tc++;
-//     if (bar->curr_tc == bar->max_tc) {
-//         bar->curr_tc = 0;
-//         pthread_cond_broadcast(&bar->ok_to_go);
-//     }
-//     else {
-//         // Wait unlocks mutex and puts thread to sleep.
-//         //    Put wait in while loop in case some other
-//         // event awakens thread.
-//         while (pthread_cond_wait(&bar->ok_to_go, &bar->mutex) != 0);
-//         // Mutex is relocked at this point.
-//     }
-//     pthread_mutex_unlock(&bar->mutex);
-// }
+void My_barrier(my_barrier_t bar) {
+    pthread_mutex_lock(&bar->mutex);
+    bar->curr_tc++;
+    if (bar->curr_tc == bar->max_tc) {
+        bar->curr_tc = 0;
+        pthread_cond_broadcast(&bar->ok_to_go);
+    }
+    else {
+        // Wait unlocks mutex and puts thread to sleep.
+        // Put wait in while loop in case some other event awakens thread.
+        while (pthread_cond_wait(&bar->ok_to_go, &bar->mutex) != 0);
+        // Mutex is relocked at this point.
+    }
+    pthread_mutex_unlock(&bar->mutex);
+}
 
 void Build_initial_queue(void) {
    int curr_sz = 0;
@@ -743,4 +812,12 @@ void Print_queue(my_queue_t queue, long id, char* title) {
         }
         printf("%s\n", string);
     }
+}
+
+void Init_term(void) {
+    term = malloc(sizeof(Term));
+    term->stack = NULL;
+    term->count = 0;
+    pthread_cond_init(&term->cond, NULL);
+    pthread_mutex_init(&term->mutex, NULL);
 }
