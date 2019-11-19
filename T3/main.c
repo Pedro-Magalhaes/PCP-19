@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-// #include <mpi.h>
+#include <mpi.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include "main.h"
@@ -81,6 +81,10 @@ int Tour_cost(tour_t tour) { return (tour->cost); }
 int Tour_count(tour_t t) { return t->count; }
 // -----------------------------------------------------------------------------
 
+// "MPI" --------------------------------------------------------------------
+int comm_rank;
+int comm_sz;
+
 // -----------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
@@ -89,6 +93,11 @@ int main(int argc, char* argv[]) {
     double time_spent;
     long thread;
     pthread_t* thread_handles;
+
+    // Variaveis MPI
+//    MPI_Init(&argc, &argv);
+//    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+//    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
 
     if (argc < 2 + 1) {
         printf("Erro, os parametros necessários não foram informados.\
@@ -148,6 +157,9 @@ int main(int argc, char* argv[]) {
    free(digraph);
    My_barrier_destroy(bar_str);
    pthread_mutex_destroy(&best_tour_mutex);
+
+   MPI_Finalize();
+
    return 0;
 }
 
