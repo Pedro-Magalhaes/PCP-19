@@ -1,8 +1,10 @@
 package main
-
 import (
 	"fmt"
 	"math"
+	"time"
+  "os"
+	"strconv"
 )
 
 type Vertex struct {
@@ -18,15 +20,55 @@ type Tarefa struct {
 }
 
 func main() {
+		var num_args = len(os.Args[0:])
+		if num_args < 4 {
+				fmt.Printf("Erro, os parametros necessários não foram informados.")
+				fmt.Printf("\nO Programa recebe os parametros nesta ordem:")
+				fmt.Printf("\n\t<numero de threads>\n\t<valor de 'a'>\n\t<valor de 'b'>")
+				fmt.Printf("\n\t<tolerancia>")
+				fmt.Printf("\nNumero de parametros recebidos: %v\n\n", num_args);
+				os.Exit(2)
+		}
+
+		var num_threads, err1 = strconv.Atoi(os.Args[1]); if err1 != nil {
+			fmt.Println(err1)
+			os.Exit(2)
+		}
+		var inicio, err2 = strconv.ParseFloat(os.Args[2], 64); if err2 != nil {
+			fmt.Println(err2)
+			os.Exit(2)
+		}
+		var fim, err3 = strconv.ParseFloat(os.Args[3], 64); if err3 != nil {
+			fmt.Println(err3)
+			os.Exit(2)
+		}
+		var tol, err4 = strconv.ParseFloat(os.Args[4], 64); if err4 != nil {
+			fmt.Println(err4)
+			os.Exit(2)
+		}
+
+		fmt.Printf("type: %T %v [num_threads]\n", num_threads, num_threads)
+		fmt.Printf("type: %T %v [inicio]\n", inicio, inicio)
+		fmt.Printf("type: %T %v [fim]\n", fim, fim)
+		fmt.Printf("type: %T %v [tol]\n\n", tol, tol)
+
     var t = Tarefa{
-        a: 0,
-        b: 1,
+        a: inicio,
+        b: fim,
         area: 0,
         calculated: false,
     }
 
-    var area = calcula_area1(t,0.001,fx2);
-    fmt.Println("area  ", area);
+		// Start
+		start := time.Now()
+
+		var area = calcula_area1(t,tol,fx2);
+
+		// End
+		elapsed := time.Since(start)
+		fmt.Println("area ", area);
+    fmt.Printf("tempo %secs\n", elapsed)
+
 }
 
 
@@ -57,13 +99,13 @@ func calcula_area1( t Tarefa, tol float64, f func(float64) float64) float64{
     var h = math.Abs(t.b-t.a);
     var meio = (t.a+t.b)/2.0;
     var hmeio = h/2.0;
-    
+
     var fa = math.Abs(f(t.a));
     var fb = math.Abs(f(t.b));
     var fm = math.Abs(f(meio));
     var area_trapezio_maior =  ((fa + fb) * h) / 2.0;
     var area_trapezios =  (((fa + fm) * hmeio) / 2.0 )+ (((fb + fm) * hmeio) / 2.0);
-    
+
     if math.Abs(area_trapezio_maior - area_trapezios) > tol {
         // println!("rec");
         var t1 = Tarefa{ a: t.a, b: meio, area: 0.0, calculated: false };
