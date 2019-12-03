@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::sync::{Mutex, Arc};
 use std::thread;
 use std::time::{Instant};
+use std::env;
 
 struct Tarefa {
     a: f64,
@@ -13,12 +14,22 @@ struct Tarefa {
 // let THREADS = 4;
 
 fn main() {
-
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 4 {
+         println!("Erro, os parametros necessários não foram informados.\
+                \nO Programa recebe os parametros nesta ordem:\
+                \n\t<numero de threads>\n\t<valor de 'a'>\n\t<valor de 'b'>\
+                \n\t<tolerancia>");
+        println!("\nNumero de parametros recebidos: {}\n\n", args.len());
+        return;
+    }
     let counter = Arc::new(Mutex::new(0.0));
     let mut handles = vec![];
-    let inicio = 0.0;
-    let fim = 1.0;
-    let num_threads = 4;
+    let num_threads: u32 = args[1].parse().expect("Not a number");
+    let inicio: f64 = args[2].parse().expect("Not a number");
+    let fim: f64 = args[3].parse().expect("Not a number");
+    let tol: f64 = args[4].parse().expect("Not a number");
+
     let incremento = f64::abs((fim - inicio)/num_threads as f64);
     let now = Instant::now();
     for i in 0..num_threads {
@@ -34,11 +45,15 @@ fn main() {
             area: 0.0,
             calculated: false
         };
-        let handle = thread::spawn(move || {
+        let handle = thread::spawn( move || {
+            // *num += calcula_area1(t,&fx1);
+            let area = calcula_area1(t,tol,&fx2);
+
             let mut num = counter.lock().unwrap();
 
-            // *num += calcula_area1(t,&fx1);
-            *num += calcula_area1b(t,&fx2b);
+            *num += area;
+
+            // println!("Terminei com num {}", *num);
         });
         handles.push(handle);
     }
@@ -73,23 +88,8 @@ fn fx2(x:f64) -> f64 {
     return res;
 }
 
-fn fx2b(x:f64, a: f64, b:f64) -> f64 {
-
-    let mut res: f64 = 0.0;
-    let step = 0.0001;
-    let num_steps = (f64::abs(b-a)/step) as u32;
-    let mut last_y: f64 = f64::exp(a);
-    for i in 1..num_steps {
-        let mut inc = (i as f64) *step;
-        let area = ((last_y + f64::exp(a + (i as f64) *step)) * step) / 2.0;
-        res += area;
-    }
-        // println!("{}",num_steps );
-    return res ;
-}
-
-
-fn calcula_area1( t: Tarefa, f: &dyn Fn(f64) -> f64) -> f64{
+fn calcula_area1( t: Tarefa, tol: f64, f: &dyn Fn(f64) -> f64) -> f64{
+    // println!("Thread {:?} trabalhando",thread::current().id());
     let h = f64::abs(t.b-t.a);
     let meio = (t.a+t.b)/2.0;
     let hmeio = h/2.0;
@@ -100,33 +100,11 @@ fn calcula_area1( t: Tarefa, f: &dyn Fn(f64) -> f64) -> f64{
     let area_trapezio_maior =  ((fa + fb) * h) / 2.0;
     let mut area_trapezios =  (((fa + fm) * hmeio) / 2.0 )+ (((fb + fm) * hmeio) / 2.0);
     
-    if f64::abs(area_trapezio_maior - area_trapezios) > 0.001 {
+    if f64::abs(area_trapezio_maior - area_trapezios) > tol {
         // println!("rec");
         let t1 = Tarefa{ a: t.a, b: meio, area: 0.0, calculated: false };
         let t2 = Tarefa { a: meio, b: t.b, area: 0.0, calculated: false };
-        area_trapezios = calcula_area1(t1,f) + calcula_area1(t2,f);
-        // printf("area+t_m = %lf , area_ts = %lf \n", area_trapezio_maior,area_trapezios);
-    }
-    return area_trapezios;
-}
-
-
-fn calcula_area1b( t: Tarefa, f: &dyn Fn(f64,f64,f64) -> f64) -> f64{
-    let h = f64::abs(t.b-t.a);
-    let meio = (t.a+t.b)/2.0;
-    let hmeio = h/2.0;
-    
-    // let fa = f64::abs(f(t.a));
-    // let fb = f64::abs(f(t.b));
-    // let fm = f64::abs(f(meio));
-    let area_trapezio_maior =  fx2b(1.0,t.a,t.b);
-    let mut area_trapezios =  fx2b(1.0,t.a,meio) + fx2b(1.0,meio,t.b);
-    
-    if f64::abs(area_trapezio_maior - area_trapezios) > 0.01 {
-        // println!("rec");
-        let t1 = Tarefa{ a: t.a, b: meio, area: 0.0, calculated: false };
-        let t2 = Tarefa { a: meio, b: t.b, area: 0.0, calculated: false };
-        area_trapezios = calcula_area1b(t1,f) + calcula_area1b(t2,f);
+        area_trapezios = calcula_area1(t1,tol,f) + calcula_area1(t2,tol,f);
         // printf("area+t_m = %lf , area_ts = %lf \n", area_trapezio_maior,area_trapezios);
     }
     return area_trapezios;
