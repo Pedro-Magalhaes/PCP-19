@@ -96,7 +96,8 @@ int main(int argc, char *argv[]) {
           if(i == NUM_THREADS - 1) { // tratando erro numerico de divisão do intervalo
               fim = b;
           }
-          area += calculaArea1(ini,fim, fx);
+          double local_area = calculaArea1(ini,fim, fx);
+          area += local_area;
       }
       end = clock();
       time_spent = (double)(end - start) / (CLOCKS_PER_SEC*NUM_THREADS);
@@ -135,11 +136,9 @@ int main(int argc, char *argv[]) {
               task = RetiraTarefa();
           }
           if(task.area > -1){
-              double areaCalc;
-              #pragma omp critical
-              {
-                  areaCalc = calculaArea2(task.a,task.b, fx);
-              }
+              double areaCalc = 0;
+              areaCalc = calculaArea2(task.a,task.b, fx);
+              
               if(areaCalc >= 0) {
                   #pragma omp critical
                   {
@@ -200,8 +199,12 @@ double calculaArea2(double a, double b, double (*f)(double)) {
         t2.a = meio;
         t2.b = b;
         // printf("inserindo tarefas\n  t1.a=%lf t1.b=%lf\n  t2.a=%lf t2.b=%lf\n",t1.a,t1.b,t2.a,t2.b);
-        InsereTarefa(t1);
-        InsereTarefa(t2);
+        #pragma omp critical 
+        {
+            InsereTarefa(t1);
+            InsereTarefa(t2);
+        }
+        
         return -1;
     }
     return area_trapezios;
