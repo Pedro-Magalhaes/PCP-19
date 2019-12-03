@@ -3,14 +3,12 @@ import (
 	"fmt"
 	"math"
 	"time"
-  "os"
+    "os"
 	"strconv"
+    "sync"
+    "sync/atomic"
+    "unsafe"
 )
-
-type Vertex struct {
-	X int
-	Y int
-}
 
 type Tarefa struct {
     a float64
@@ -52,26 +50,60 @@ func main() {
 		fmt.Printf("type: %T %v [fim]\n", fim, fim)
 		fmt.Printf("type: %T %v [tol]\n\n", tol, tol)
 
-    var t = Tarefa{
-        a: inicio,
-        b: fim,
-        area: 0,
-        calculated: false,
+    
+    var incremento = math.Abs((fim - inicio) / float64(num_threads) );
+        
+    
+    var wg sync.WaitGroup;
+    var area = 0.0;
+    // Start time
+    start := time.Now();
+    
+    
+    for index := 0; index < num_threads; index++ {
+        wg.Add(1);
+        var a = incremento * float64(index) + inicio;
+        var b = a + float64(incremento);
+        if index == num_threads-1 {
+            b = fim;
+        }
+        var t = Tarefa{
+            a: a,
+            b: b,
+            area: 0,
+            calculated: false,
+        }
+        go func() {
+            var area_local = calcula_area1(t,tol,fx);
+            AtomicAddFloat64(&area,area_local);
+            wg.Done()
+        }()
     }
+      
+    
+    wg.Wait()
 
-		// Start
-		start := time.Now()
-
-		var area = calcula_area1(t,tol,fx2);
-
-		// End
-		elapsed := time.Since(start)
-		fmt.Println("area ", area);
-    fmt.Printf("tempo %secs\n", elapsed)
+    // End
+    elapsed := time.Since(start)
+    fmt.Println("area ", area);
+    fmt.Println("tempo ", elapsed.Seconds())
 
 }
 
-
+func AtomicAddFloat64(val *float64, delta float64) (new float64) {
+    for {
+        old := *val
+        new = old + delta
+        if atomic.CompareAndSwapUint64(
+            (*uint64)(unsafe.Pointer(val)),
+            math.Float64bits(old),
+            math.Float64bits(new),
+        ) {
+            break
+        }
+    }
+    return
+}
 
 func x2(x float64) float64 {
     return x * x;
@@ -94,15 +126,20 @@ func fx2(x float64) float64 {
     return res;
 }
 
+func fx(x float64) float64 {
+    return math.Exp(x) * math.Cos(x);
+}
+
+
 func calcula_area1( t Tarefa, tol float64, f func(float64) float64) float64{
     // println!("Thread {:?} trabalhando",thread::current().id());
     var h = math.Abs(t.b-t.a);
     var meio = (t.a+t.b)/2.0;
     var hmeio = h/2.0;
 
-    var fa = math.Abs(f(t.a));
-    var fb = math.Abs(f(t.b));
-    var fm = math.Abs(f(meio));
+    var fa = f(t.a);
+    var fb = f(t.b);
+    var fm = f(meio);
     var area_trapezio_maior =  ((fa + fb) * h) / 2.0;
     var area_trapezios =  (((fa + fm) * hmeio) / 2.0 )+ (((fb + fm) * hmeio) / 2.0);
 

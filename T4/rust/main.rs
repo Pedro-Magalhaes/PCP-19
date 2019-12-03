@@ -47,7 +47,7 @@ fn main() {
         };
         let handle = thread::spawn( move || {
             // *num += calcula_area1(t,&fx1);
-            let area = calcula_area1(t,tol,&fx2);
+            let area = calcula_area1(t,tol,&fx);
 
             let mut num = counter.lock().unwrap();
 
@@ -88,15 +88,20 @@ fn fx2(x:f64) -> f64 {
     return res;
 }
 
+
+fn fx(x: f64) -> f64 {
+    return f64::exp(x) * f64::cos(x);
+}
+
 fn calcula_area1( t: Tarefa, tol: f64, f: &dyn Fn(f64) -> f64) -> f64{
     // println!("Thread {:?} trabalhando",thread::current().id());
     let h = f64::abs(t.b-t.a);
     let meio = (t.a+t.b)/2.0;
     let hmeio = h/2.0;
     
-    let fa = f64::abs(f(t.a));
-    let fb = f64::abs(f(t.b));
-    let fm = f64::abs(f(meio));
+    let fa = f(t.a);
+    let fb = f(t.b);
+    let fm = f(meio);
     let area_trapezio_maior =  ((fa + fb) * h) / 2.0;
     let mut area_trapezios =  (((fa + fm) * hmeio) / 2.0 )+ (((fb + fm) * hmeio) / 2.0);
     
