@@ -95,10 +95,9 @@ int main(int argc, char* argv[]) {
     pthread_t* thread_handles;
 
     // Variaveis MPI
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
-
+//    MPI_Init(&argc, &argv);
+//    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+//    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
 
     if (argc < 2 + 1) {
         printf("Erro, os parametros necessários não foram informados.\
@@ -179,6 +178,7 @@ void* Thread_tree_search(void* rank) {
 
     // DFS
     while (!Empty_stack(stack)) {
+    // while (!Terminated(stack, id)) {
 		curr_tour = Pop(stack);
 		if (Tour_count(curr_tour) == n) {
 			if (Best_tour(curr_tour)) {
